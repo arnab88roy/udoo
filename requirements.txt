@@ -3,5 +3,11 @@ uvicorn
 sqlalchemy
 pydantic
 asyncpg
+alembic
+python-dotenv
 langgraph
 crewai
+pytest
+pytest-asyncio
+httpx
+psycopg2-binary
