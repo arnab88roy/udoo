@@ -1,5 +1,5 @@
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict
+from typing import Optional, List, Literal
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from datetime import date, datetime
 
@@ -199,6 +199,7 @@ class EmployeeUpdate(BaseModel):
     education: Optional[List[EmployeeEducationUpdate]] = None
     external_work_history: Optional[List[EmployeeExternalWorkHistoryUpdate]] = None
     internal_work_history: Optional[List[EmployeeInternalWorkHistoryUpdate]] = None
+    salary_structure_id: Optional[UUID] = None
 
 class EmployeeResponse(EmployeeBase):
     id: UUID
@@ -308,4 +309,90 @@ class LeaveApplicationResponse(LeaveApplicationBase):
     employee: Optional[EmployeeResponse] = None
     leave_type: Optional[LeaveTypeResponse] = None
     
+    model_config = ConfigDict(from_attributes=True)
+
+# --- Attendance Management Schemas ---
+
+class EmployeeSummary(BaseModel):
+    id: UUID = Field(..., description="Unique ID of the employee")
+    employee_name: Optional[str] = Field(None, description="Full name of the employee")
+    model_config = ConfigDict(from_attributes=True)
+
+class EmployeeCheckinBase(BaseModel):
+    employee_id: UUID = Field(..., description="ID of the employee checking in/out")
+    log_type: Literal["IN", "OUT"] = Field(..., description="Type of log: IN for check-in, OUT for check-out")
+    time: datetime = Field(..., description="The actual timestamp of the check-in/out")
+    device_id: Optional[str] = Field(None, description="ID of the biometric device, if applicable")
+    skip_auto_attendance: bool = Field(False, description="Whether to skip automatic attendance processing for this log")
+
+class EmployeeCheckinCreate(EmployeeCheckinBase):
+    pass
+
+class EmployeeCheckinResponse(EmployeeCheckinBase):
+    id: UUID = Field(..., description="Unique ID of the check-in log")
+    tenant_id: UUID = Field(..., description="Tenant ID for RLS")
+    created_at: datetime = Field(..., description="Records when the log was first created in the system")
+    
+    employee: Optional[EmployeeSummary] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class AttendanceStatus(BaseModel):
+    status: Literal["Present", "Absent", "Half Day", "On Leave", "Work From Home"]
+
+class AttendanceBase(BaseModel):
+    employee_id: UUID = Field(..., description="ID of the employee")
+    company_id: UUID = Field(..., description="ID of the company")
+    attendance_date: date = Field(..., description="The date for which attendance is recorded")
+    status: Literal["Present", "Absent", "Half Day", "On Leave", "Work From Home"] = Field(..., description="Attendance status for the day")
+    working_hours: Optional[float] = Field(None, description="Total hours worked on this day", ge=0, le=24)
+    late_entry: bool = Field(False, description="Indicates if the employee entered late")
+    early_exit: bool = Field(False, description="Indicates if the employee exited early")
+    leave_application_id: Optional[UUID] = Field(None, description="Linked leave application if status is 'On Leave'")
+
+class AttendanceCreate(AttendanceBase):
+    docstatus: int = Field(0, description="Workflow state. 0=Draft, 1=Submitted, 2=Cancelled.")
+
+class AttendanceUpdate(BaseModel):
+    status: Optional[Literal["Present", "Absent", "Half Day", "On Leave", "Work From Home"]] = None
+    working_hours: Optional[float] = None
+    late_entry: Optional[bool] = None
+    early_exit: Optional[bool] = None
+
+class AttendanceResponse(AttendanceBase):
+    id: UUID = Field(..., description="Unique ID of the attendance record")
+    tenant_id: UUID = Field(..., description="Tenant ID for RLS")
+    docstatus: int = Field(..., description="Workflow state. 0=Draft, 1=Submitted, 2=Cancelled.")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+    
+    employee: Optional[EmployeeSummary] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class AttendanceRequestBase(BaseModel):
+    employee_id: UUID = Field(..., description="ID of the employee making the request")
+    company_id: UUID = Field(..., description="ID of the company")
+    from_date: date = Field(..., description="Start date of the correction request")
+    to_date: date = Field(..., description="End date of the correction request")
+    reason: str = Field(..., description="Brief reason for the attendance correction")
+    explanation: Optional[str] = Field(None, description="Detailed explanation for the request")
+
+class AttendanceRequestCreate(AttendanceRequestBase):
+    docstatus: int = Field(0, description="Workflow state. 0=Draft, 1=Submitted, 2=Cancelled.")
+    status: str = Field("Open", description="Business status of the request (Open, Approved, Rejected)")
+
+class AttendanceRequestUpdate(BaseModel):
+    from_date: Optional[date] = None
+    to_date: Optional[date] = None
+    reason: Optional[str] = None
+    explanation: Optional[str] = None
+
+class AttendanceRequestResponse(AttendanceRequestBase):
+    id: UUID = Field(..., description="Unique ID of the request")
+    tenant_id: UUID = Field(..., description="Tenant ID for RLS")
+    docstatus: int = Field(..., description="Workflow state. 0=Draft, 1=Submitted, 2=Cancelled.")
+    status: str = Field(..., description="Business status of the request (Open, Approved, Rejected)")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+    
+    employee: Optional[EmployeeSummary] = None
     model_config = ConfigDict(from_attributes=True)

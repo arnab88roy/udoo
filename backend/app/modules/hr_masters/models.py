@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Boolean, Date, ForeignKey, Integer, Numeric, Text, CheckConstraint
+from sqlalchemy import Column, String, Boolean, Date, ForeignKey, Integer, Numeric, Text, CheckConstraint, DateTime, UniqueConstraint
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declared_attr
@@ -67,6 +68,9 @@ class Employee(CoreMasterBase):
     # Attendance & Leave
     attendance_device_id = Column(String, unique=True, nullable=True)
     holiday_list_id = Column(UUID(as_uuid=True), ForeignKey("hr_holiday_lists.id", ondelete="SET NULL"), nullable=True)
+
+    # Salary Structure Mapping
+    salary_structure_id = Column(UUID(as_uuid=True), ForeignKey("hr_salary_structures.id", ondelete="SET NULL"), nullable=True)
 
     # Salary
     salary_mode = Column(String, nullable=True)
@@ -230,3 +234,53 @@ class LeaveApplication(CoreMasterBase):
     # leave_approver mapped to User (which is in core_masters.models) is technically doable but leaving it simple for eager load
     # company mapped to Company
     # amended_from mapped to LeaveApplication
+
+# --- Attendance Management ---
+
+class EmployeeCheckin(CoreMasterBase):
+    __tablename__ = "hr_employee_checkins"
+
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("hr_employees.id", ondelete="RESTRICT"), nullable=False, index=True)
+    log_type = Column(String, nullable=False) # "IN" or "OUT"
+    time = Column(DateTime(timezone=True), nullable=False)
+    device_id = Column(String, nullable=True)
+    skip_auto_attendance = Column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    employee = relationship("Employee")
+
+class Attendance(CoreMasterBase):
+    __tablename__ = "hr_attendance"
+
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("hr_employees.id", ondelete="RESTRICT"), nullable=False, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("hr_companies.id", ondelete="RESTRICT"), nullable=False, index=True)
+    attendance_date = Column(Date, nullable=False)
+    status = Column(String, nullable=False) # "Present", "Absent", etc.
+    docstatus = Column(Integer, default=0, nullable=False)
+    working_hours = Column(Numeric(5, 2), nullable=True)
+    late_entry = Column(Boolean, default=False, nullable=False)
+    early_exit = Column(Boolean, default=False, nullable=False)
+    leave_application_id = Column(UUID(as_uuid=True), ForeignKey("hr_leave_applications.id", ondelete="SET NULL"), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('employee_id', 'attendance_date', name='uq_employee_attendance_date'),
+    )
+
+    # Relationships
+    employee = relationship("Employee")
+    leave_application = relationship("LeaveApplication")
+
+class AttendanceRequest(CoreMasterBase):
+    __tablename__ = "hr_attendance_requests"
+
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("hr_employees.id", ondelete="RESTRICT"), nullable=False, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("hr_companies.id", ondelete="RESTRICT"), nullable=False, index=True)
+    from_date = Column(Date, nullable=False)
+    to_date = Column(Date, nullable=False)
+    reason = Column(Text, nullable=False)
+    explanation = Column(Text, nullable=True)
+    docstatus = Column(Integer, default=0, nullable=False)
+    status = Column(String, default="Open", nullable=False)
+
+    # Relationships
+    employee = relationship("Employee")

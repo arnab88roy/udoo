@@ -5,7 +5,7 @@ import uuid
 # The test tenant we set in generate_test_token.py
 TENANT_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 # The token generated from that tenant
-TOKEN = "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAidGVzdF91c2VyIiwgInRlbmFudF9pZCI6ICIzZmE4NWY2NC01NzE3LTQ1NjItYjNmYy0yYzk2M2Y2NmFmYTYifQ.3MxHd2Yyx8iBDv_lJJ_-EKGAkJ3nT-rpgiZ1laWpMBQ"
+TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X3VzZXIiLCJ0ZW5hbnRfaWQiOiIzZmE4NWY2NC01NzE3LTQ1NjItYjNmYy0yYzk2M2Y2NmFmYTYifQ.1DahwHwgMm0jXLywdsFXk9rH9a7vdNIq6XGq2FDcR8g"
 
 BASE_URL = "http://127.0.0.1:8000/api"
 
@@ -15,7 +15,7 @@ async def main():
         "Content-Type": "application/json"
     }
     
-    async with AsyncClient(base_url=BASE_URL, headers=headers) as client:
+    async with AsyncClient(base_url=BASE_URL, headers=headers, timeout=60.0) as client:
         print("Seeding data for test tenant...")
         
         # 1. Create Company

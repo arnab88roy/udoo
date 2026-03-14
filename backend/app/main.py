@@ -1,7 +1,7 @@
 import logging
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
-from contextvars import ContextVar
+from uuid import UUID
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -40,10 +40,6 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-# Placeholder ContextVar for the Tenant ID to support Row-Level Security
-# For async scenarios, passing it explicitly in route handlers is typically better,
-# but ContextVars allow low-level SQLAlchemy hooks to access the tenant transparently.
-_tenant_id_ctx: ContextVar[str] = ContextVar("tenant_id", default="")
 
 @app.middleware("http")
 async def jwt_authentication_middleware(request: Request, call_next):
@@ -60,21 +56,13 @@ async def jwt_authentication_middleware(request: Request, call_next):
     if not auth_header or not auth_header.startswith("Bearer "):
         return JSONResponse(status_code=401, content={"detail": "Missing JWT Token"})
 
-    # 3. Extract Tenant ID (Simulating JWT decoding boundary)
-    # In a real setup, `tenant_id` comes from the decoded token payload.
-    tenant_id = request.headers.get("X-Tenant-ID", "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-    
-    # 4. Set Tenant ID in ContextVar for potential low-level hooks
-    token = _tenant_id_ctx.set(tenant_id)
-    
-    # 5. Proceed with the request
-    try:
-        response = await call_next(request)
-        return response
-    finally:
-        _tenant_id_ctx.reset(token)
+    # 3. Token exists and has Bearer prefix — proceed.
+    # Actual tenant_id extraction happens in get_tenant_id() via Depends().
+    # Do NOT read X-Tenant-ID header here — that was the old insecure pattern.
+    return await call_next(request)
 
 from app.dependencies import get_tenant_id
+from app.schemas.ui_response import UIResponse, VEDARequest, make_text_response
 
 @app.get("/")
 async def root():
@@ -87,7 +75,22 @@ async def health_check():
 
 from app.modules.core_masters.router import router as core_masters_router
 from app.modules.org_masters.router import router as org_masters_router
-from app.modules.hr_masters.router import router as hr_masters_router, employee_router as hr_employee_router, leave_type_router, leave_application_router
+from app.modules.hr_masters.routers import (
+    router as hr_masters_router,
+    employee_router as hr_employee_router,
+    leave_type_router,
+    leave_application_router,
+    checkin_router,
+    attendance_router,
+    attendance_request_router
+)
+from app.modules.payroll.router import (
+    compliance_router,
+    pt_slab_router,
+    salary_component_router,
+    salary_structure_router,
+    salary_slip_router
+)
 
 app.include_router(core_masters_router, prefix="/api")
 app.include_router(org_masters_router, prefix="/api")
@@ -95,9 +98,56 @@ app.include_router(hr_masters_router, prefix="/api")
 app.include_router(hr_employee_router, prefix="/api")
 app.include_router(leave_type_router, prefix="/api")
 app.include_router(leave_application_router, prefix="/api")
+app.include_router(checkin_router, prefix="/api")
+app.include_router(attendance_router, prefix="/api")
+app.include_router(attendance_request_router, prefix="/api")
+
+# Payroll Routers
+app.include_router(compliance_router, prefix="/api")
+app.include_router(pt_slab_router, prefix="/api")
+app.include_router(salary_component_router, prefix="/api")
+app.include_router(salary_structure_router, prefix="/api")
+app.include_router(salary_slip_router, prefix="/api")
+
+from app.utils.veda_context import sanitise_request_context, describe_context
+
+@app.post("/api/veda/chat", response_model=UIResponse)
+async def veda_chat(
+    request: VEDARequest,
+    tenant_id: UUID = Depends(get_tenant_id)
+):
+    """
+    VEDA chat endpoint. Accepts a natural language message and
+    returns a typed UIResponse for the frontend to render.
+
+    Security: tenant_id from JWT always overrides client-supplied value.
+    Context: Active record context is passed automatically by the frontend.
+    Stub: Returns TEXT response until LangGraph is wired in Task 3.1.
+    """
+    # SECURITY: Always sanitise context — JWT tenant_id overwrites client value
+    safe_context = sanitise_request_context(request.context, tenant_id)
+
+    # STUB: Real LangGraph routing implemented in Task 3.1
+    # Returns context description so frontend and tests can verify
+    # context is flowing correctly before LangGraph is wired.
+    context_description = describe_context(safe_context)
+
+    return make_text_response(
+        message=(
+            f"VEDA received: '{request.message}'. "
+            f"Context: {context_description} "
+            f"LangGraph routing will be wired in Task 3.1."
+        ),
+        context=safe_context,
+        hints=[
+            "Show all active employees",
+            "Run payroll for this month",
+            "Show pending leave approvals"
+        ]
+    )
 
 @app.get("/api/me")
-async def get_current_tenant_info(tenant_id: str = Depends(get_tenant_id)):
+async def get_current_tenant_info(tenant_id: UUID = Depends(get_tenant_id)):
     """
     Example protected endpoint that relies on the Dependency Injection function
     to isolate requests using PostgreSQL RLS (tenant_id).
