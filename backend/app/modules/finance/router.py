@@ -329,7 +329,7 @@ async def create_invoice(
             tenant_id=current_user.tenant_id
         )
 
-        # Calculate taxable_amount
+        # Calculate taxable_amount (re-implementing for 100% certainty)
         line.taxable_amount = (
             line.quantity * line.rate * (1 - line.discount_percent / 100)
         ).quantize(Decimal("0.01"))
@@ -372,12 +372,12 @@ async def create_invoice(
         subtotal += line.taxable_amount
         total_tax += line.tax_amount
 
-    # Update invoice totals after the loop
+    # Update invoice totals
     invoice.subtotal = subtotal
     invoice.total_tax = total_tax
     invoice.total_amount = subtotal + total_tax
     invoice.outstanding_amount = invoice.total_amount
-    invoice.base_total_amount = invoice.total_amount * invoice.exchange_rate
+    invoice.base_total_amount = (invoice.total_amount * invoice.exchange_rate).quantize(Decimal("0.01"))
     
     await db.commit()
     
@@ -530,7 +530,7 @@ async def create_proforma(
         )
         line.taxable_amount = (line.quantity * line.rate * (1 - line.discount_percent/100)).quantize(Decimal("0.01"))
         
-        # GST Calculation (identical to Quote/Invoice)
+        # GST Calculation (ensuring parity with Quote/Invoice)
         effective_template_id = line.tax_template_id or proforma.tax_template_id
         if effective_template_id:
             stmt = select(TaxTemplateLine).where(TaxTemplateLine.tax_template_id == effective_template_id)
@@ -560,7 +560,7 @@ async def create_proforma(
     proforma.subtotal = subtotal
     proforma.total_tax = total_tax
     proforma.total_amount = subtotal + total_tax
-    proforma.base_total_amount = proforma.total_amount * proforma.exchange_rate
+    proforma.base_total_amount = (proforma.total_amount * proforma.exchange_rate).quantize(Decimal("0.01"))
     
     await db.commit()
     
@@ -729,12 +729,13 @@ async def create_recurring(
     )
     res = await db.execute(stmt)
     template = res.scalar_one_or_none()
+    
     if not template:
         raise HTTPException(status_code=404, detail="Template invoice not found.")
     if template.docstatus != 1:
         raise HTTPException(
             status_code=400,
-            detail="Template invoice must be submitted (docstatus=1)."
+            detail="Template invoice must be submitted (docstatus=1) to be used for recurring setup."
         )
 
     config = RecurringInvoiceConfig(
@@ -848,31 +849,45 @@ async def get_salary_slip_html(
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Salary Slip</title>
+        <title>Salary Slip - {emp_name}</title>
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
-            h1 {{ color: #1a1a2e; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
-            th {{ background: #f0f0f0; text-align: left; padding: 8px; }}
-            td {{ padding: 8px; border-bottom: 1px solid #eee; }}
-            .total {{ font-weight: bold; background: #f9f9f9; }}
-            .header {{ display: flex; justify-content: space-between; }}
+            body {{ font-family: 'Inter', sans-serif; margin: 40px; color: #333; line-height: 1.5; }}
+            h1 {{ color: #1a1a2e; margin-bottom: 4px; }}
+            .sub-h {{ color: #666; font-size: 14px; margin-bottom: 24px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 16px; border: 1px solid #eee; }}
+            th {{ background: #f8f9fa; text-align: left; padding: 12px; border-bottom: 2px solid #dee2e6; }}
+            td {{ padding: 12px; border-bottom: 1px solid #eee; }}
+            .total {{ font-weight: bold; background: #f8f9fa; }}
+            .header {{ display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1a1a2e; padding-bottom: 16px; }}
+            .net-pay {{ background: #1a1a2e; color: white; padding: 16px; border-radius: 4px; display: inline-block; margin-top: 24px; }}
             @media print {{ button {{ display: none; }} }}
         </style>
     </head>
     <body>
         <div class="header">
-            <div><h1>{co_name}</h1></div>
-            <div><button onclick="window.print()">Print / Save PDF</button></div>
+            <div>
+                <h1>{co_name}</h1>
+                <div class="sub-h">Official Salary Statement</div>
+            </div>
+            <div><button onclick="window.print()" style="padding: 8px 16px; cursor: pointer;">Print / Save PDF</button></div>
         </div>
-        <h2>Salary Slip — {slip.payroll_month}/{slip.payroll_year}</h2>
-        <p><strong>Employee:</strong> {emp_name}</p>
-        <p><strong>Working Days:</strong> {slip.working_days} &nbsp;
-           <strong>Present Days:</strong> {slip.present_days} &nbsp;
-           <strong>LOP Days:</strong> {slip.lop_days}</p>
+        
+        <div style="margin-top: 24px;">
+            <div style="font-size: 20px; font-weight: bold;">Salary Slip — {slip.payroll_month}/{slip.payroll_year}</div>
+            <p><strong>Employee:</strong> {emp_name}</p>
+            <p><strong>Attendance:</strong> Working: {slip.working_days} | Present: {slip.present_days} | LOP: {slip.lop_days}</p>
+        </div>
 
         <table>
-            <tr><th>Earnings</th><th>Amount (₹)</th><th>Deductions</th><th>Amount (₹)</th></tr>
+            <thead>
+                <tr>
+                    <th>Earnings</th>
+                    <th>Amount (₹)</th>
+                    <th>Deductions</th>
+                    <th>Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
     """
 
     earnings = slip.earnings or []
@@ -889,18 +904,25 @@ async def get_salary_slip_html(
         html += f"<tr><td>{e_name}</td><td>{e_amt}</td><td>{d_name}</td><td>{d_amt}</td></tr>"
 
     html += f"""
-            <tr class="total">
-                <td>Gross Earnings</td>
-                <td>{slip.gross_earnings:,.2f}</td>
-                <td>Total Deductions</td>
-                <td>{slip.total_deductions:,.2f}</td>
-            </tr>
+                <tr class="total">
+                    <td>Gross Earnings</td>
+                    <td>{slip.gross_earnings:,.2f}</td>
+                    <td>Total Deductions</td>
+                    <td>{slip.total_deductions:,.2f}</td>
+                </tr>
+            </tbody>
         </table>
-        <h3>Net Pay: ₹{slip.net_pay:,.2f}</h3>
-        <p style="font-size:11px;color:#999;">
-            PF (Employer): ₹{slip.pf_employer:,.2f} &nbsp;
-            ESI (Employer): ₹{slip.esi_employer:,.2f}
-        </p>
+        
+        <div class="net-pay">
+            <span style="font-size: 14px; opacity: 0.8;">NET PAYABLE</span><br/>
+            <span style="font-size: 24px; font-weight: bold;">₹{slip.net_pay:,.2f}</span>
+        </div>
+
+        <div style="margin-top: 24px; font-size: 12px; color: #777; border-top: 1px solid #eee; padding-top: 16px;">
+            <strong>Employer Contributions:</strong> 
+            PF: ₹{slip.pf_employer:,.2f} | 
+            ESI: ₹{slip.esi_employer:,.2f}
+        </div>
     </body>
     </html>
     """
