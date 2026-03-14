@@ -2,6 +2,13 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from dotenv import load_dotenv
+from contextvars import ContextVar
+from uuid import UUID
+from typing import Optional
+
+current_user_id_ctx: ContextVar[Optional[UUID]] = ContextVar(
+    'current_user_id', default=None
+)
 
 load_dotenv()
 

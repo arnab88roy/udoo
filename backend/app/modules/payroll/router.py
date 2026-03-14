@@ -8,7 +8,9 @@ from sqlalchemy.orm import selectinload
 import logging
 
 from app.db.database import get_db
-from app.dependencies import get_tenant_id
+from app.dependencies import get_tenant_id, get_current_user
+from app.schemas.user_context import UserContext
+from app.utils.permissions import require_permission
 from app.modules.hr_masters import models as hr_models
 from . import models, schemas, calculator
 
@@ -454,8 +456,11 @@ async def bulk_generate_payroll_task(
 async def bulk_generate_payroll(
     request: schemas.BulkGenerateRequest, 
     background_tasks: BackgroundTasks,
-    tenant_id: UUID = Depends(get_tenant_id)
+    db: AsyncSession = Depends(get_db),
+    tenant_id: UUID = Depends(get_tenant_id),
+    current_user: UserContext = Depends(get_current_user),
 ):
+    require_permission(current_user, "payroll", "submit")
     background_tasks.add_task(
         bulk_generate_payroll_task,
         request.company_id,

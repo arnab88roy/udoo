@@ -14,10 +14,11 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.database import Base
-from app.modules.core_masters import models
-from app.modules.org_masters import models
-from app.modules.hr_masters import models
-from app.modules.payroll import models
+from app.modules.core_masters import models as core_models
+from app.modules.org_masters import models as org_models
+from app.modules.hr_masters import models as hr_models
+from app.modules.payroll import models as payroll_models
+from app.modules.finance import models as finance_models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

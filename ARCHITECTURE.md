@@ -22,11 +22,53 @@ Neither blocks the other. The record does not care who filled which field.
 2. Interruptible — human can take over mid-task, VEDA can take over a human-started task
 3. Transparent diffs — VEDA-filled fields carry visual attribution (purple tint)
 
+## Security Model
+
+### Six Roles
+| Role | HRMS | Payroll | Finance | Settings | CRM | Tasks |
+|---|---|---|---|---|---|---|
+| owner | Full | Full | Full | Full | Full | Full |
+| hr_manager | Full | Full | None | Partial | None | Full |
+| finance_manager | None | View+Approve | Full | Partial | Full | Full |
+| manager | View+Approve (team only) | None | None | None | View+Create | Full |
+| employee | Self only | View self | None | None | None | Own tasks |
+| auditor | View all | View all | View all | View all | View all | View all |
+
+### Permission Check Pattern
+Every protected endpoint uses:
+```python
+require_permission(current_user, "module_name", "action")
+# action: view, create, edit, submit, approve, delete
+```
+
+### Org Scope Pattern
+Every list endpoint for manager/employee roles uses:
+```python
+visible_ids = await get_visible_employee_ids(db, current_user, tenant_id)
+if visible_ids is not None:
+    query = query.where(Employee.id.in_(visible_ids))
+```
+
+### Audit Trail
+created_by and modified_by are auto-populated on every record
+via SQLAlchemy events reading from current_user_id_ctx ContextVar.
+No manual passing required in individual endpoints.
+
+### VEDA Personalisation
+VEDA's system prompt is dynamically assembled per user from:
+1. Identity: name, designation, company
+2. Permissions: which modules and actions are available
+3. Scope: which employees/records are visible
+4. Context: active record open in the editor (Task 2.9c)
+
 ## Tech Stack
 - Backend: FastAPI async, SQLAlchemy, Pydantic
 - Database: Supabase PostgreSQL, RLS via tenant_id
 - Migrations: Alembic (single source of truth)
 - JWT: python-jose, HS256, tenant_id extracted from payload
+- Auth: bcrypt for password hashing, python-jose for JWT
+- RBAC: Custom permission matrix in permissions.py
+- Org scope: PostgreSQL recursive CTEs via SQLAlchemy text()
 - AI: LangGraph supervisor + domain agents
 - Frontend: Next.js 16, Tailwind CSS, shadcn/ui, Lucide
 
@@ -39,18 +81,24 @@ Neither blocks the other. The record does not care who filled which field.
 6. AI agents call the same FastAPI endpoints humans use
 
 ## Current Module Status
+
+### Backend
 - core_masters: ✅ Complete
 - org_masters: ✅ Complete
 - hr_masters/employee: ✅ Complete
 - hr_masters/leave: ✅ Complete
 - hr_masters/attendance: ✅ Complete
 - payroll: ✅ Complete
-- finance/quotes+invoices: 📋 Next
-- AI VEDA layer: 📋 Phase 3 (Schema & stub ✅)
 - ui_response_schema: ✅ Complete (backend/app/schemas/ui_response.py)
 - veda_chat_endpoint: ✅ Stub live at POST /api/veda/chat
 - veda_context_system: ✅ Complete (backend/app/utils/veda_context.py)
-- frontend_shell: 📋 Phase 4
+- rbac_and_auth: ✅ Task 2.10 (Finished)
+- org_scope_queries: ✅ Task 2.10 (Finished)
+- finance_module: ✅ Complete
+- veda_ai_layer: 📋 Phase 3 — after Finance
+
+### Frontend
+- frontend_shell: 📋 Phase 4 — after VEDA AI layer
 
 ## Frontend Architecture
 

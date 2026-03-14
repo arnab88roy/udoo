@@ -132,3 +132,30 @@ async def hr_agent_node(state: AgentState) -> AgentState:
     # Step 3: Return UIResponse with correct context
     ...
 ```
+
+## UserContext in VEDA System Prompt
+
+Every LangGraph agent receives both UIContext (what record is open)
+and UserContext (who the user is). The system prompt must include both.
+
+Use describe_context() for UIContext and this pattern for UserContext:
+
+```python
+def describe_user(user: UserContext) -> str:
+    """Generate the user identity section of VEDA's system prompt."""
+    scope = ""
+    if user.role == "manager":
+        scope = "You can only see and act on records for your direct team. "
+    elif user.role == "employee":
+        scope = "You can only see and act on your own records. "
+
+    return (
+        f"You are speaking with a user with role: {user.role}. "
+        f"Their employee ID is {user.employee_id}. "
+        f"{scope}"
+        f"Only suggest actions this user has permission to perform. "
+        f"Do not mention modules or actions outside their access."
+    )
+```
+
+This string is injected into the LangGraph system prompt at Task 3.1.

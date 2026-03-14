@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from uuid import UUID
 
@@ -21,6 +21,14 @@ class CompanyBase(CoreMasterSchemaBase):
     company_name: str
     abbr: str
     domain: Optional[str] = None
+    gstin: Optional[str] = Field(None,
+        description="GST Identification Number. 15 characters. "
+                    "Required for Indian GST invoicing.")
+    state_code: Optional[str] = Field(None,
+        description="Two-letter Indian state code for GST type "
+                    "determination (CGST/SGST vs IGST).")
+    base_currency_id: Optional[UUID] = Field(None,
+        description="Company's reporting/base currency UUID.")
 
 class CompanyCreate(CompanyBase):
     pass
@@ -29,6 +37,9 @@ class CompanyUpdate(BaseModel):
     company_name: Optional[str] = None
     abbr: Optional[str] = None
     domain: Optional[str] = None
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
+    base_currency_id: Optional[UUID] = None
 
 class CompanyResponse(CompanyBase, CoreMasterSchemaResponse):
     pass
@@ -136,18 +147,46 @@ class CurrencyResponse(CurrencyBase, CoreMasterSchemaResponse):
 
 # ====== User ======
 class UserBase(CoreMasterSchemaBase):
-    email: str
-    full_name: Optional[str] = None
-    is_active: Optional[bool] = True
+    email: str = Field(...,
+        description="User's email address. Used for login and notifications.")
+    full_name: Optional[str] = Field(None,
+        description="User's display name.")
+    role: str = Field("employee",
+        description="Access role. One of: owner, hr_manager, "
+                    "finance_manager, manager, employee, auditor.")
+    company_id: Optional[UUID] = Field(None,
+        description="Company this user belongs to within the tenant.")
+    employee_id: Optional[UUID] = Field(None,
+        description="Linked employee record. Null for owner before "
+                    "employee record is created.")
+    is_active: bool = Field(True,
+        description="Whether this user can log in.")
 
 class UserCreate(UserBase):
-    pass
+    password: Optional[str] = Field(None,
+        description="Plain text password. Hashed before storage. "
+                    "Null for invite-flow accounts.")
 
 class UserUpdate(BaseModel):
-    email: Optional[str] = None
     full_name: Optional[str] = None
+    role: Optional[str] = None
+    company_id: Optional[UUID] = None
+    employee_id: Optional[UUID] = None
     is_active: Optional[bool] = None
 
 class UserResponse(UserBase, CoreMasterSchemaResponse):
-    pass
+    last_login: Optional[datetime] = Field(None,
+        description="Last successful login timestamp.")
+    # NEVER include hashed_password in any response schema
+
+class RolePermissionResponse(BaseModel):
+    role: str
+    module: str
+    can_view: bool
+    can_create: bool
+    can_edit: bool
+    can_submit: bool
+    can_approve: bool
+    can_delete: bool
+    model_config = ConfigDict(from_attributes=True)
 

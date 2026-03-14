@@ -38,7 +38,7 @@ This skill must be read before building any Payroll, Invoice, Quote, or Finance 
 ```
 
 ### Invoice Number Format
-- Sequential per financial year: `INV-2425-0001`, `INV-2425-0002`
+- Sequential per financial year: `INV-2526-0001`, `INV-2526-0002`
 - Financial year in India: April 1 to March 31
 - Never reset within a financial year
 
@@ -95,20 +95,69 @@ Store employee's tax regime choice: old_regime | new_regime
 
 ---
 
-## 3. TDS on Payments (Non-Salary) — Future Phase
+## 3. TDS on Payments (Non-Salary)
+*Built in Task 2.11 Finance Module. Sections 194C and 194J are LIVE.*
+
+### Section 194C — Works Contract / Contractor Payments
 ```
-Section 194C: Contractor payments — 1% individual, 2% company
-Section 194J: Professional fees — 10%
-Section 194A: Interest — 10%
-Store as: tds_sections table, linked to vendor/payment type
+Applies to: contractors, sub-contractors, transport
+Individual/HUF rate: 1%
+Company rate: 2%
+Threshold: ₹30,000 per single payment OR ₹1,00,000 annually
+Deducted by: the person making the payment (payer)
 ```
+
+### Section 194J — Professional / Technical Services
+```
+Applies to: CA fees, legal fees, consulting, technical services,
+royalty, non-compete fees
+Rate: 10% (2% for technical services from April 2020)
+Threshold: ₹30,000 annually
+Deducted by: the person making the payment
+```
+
+### TDS Threshold Rule
+TDS applies on the FULL payment that crosses the threshold —
+not just the excess amount above the threshold.
+
+```
+Example:
+  Annual threshold: ₹30,000
+  Payments so far this FY: ₹28,000
+  New payment: ₹5,000 (accumulated = ₹33,000 → threshold crossed)
+  TDS deducted: on ₹5,000 (the crossing payment, not the ₹3,000 excess)
+```
+
+### TDS Accumulation Reset
+accumulated_payments_this_year resets to 0 on April 1 each year.
+FY is April 1 to March 31.
+
+### Implementation — fin_tds_configs table
+```
+- client_id (FK → fin_clients)
+- is_applicable: Boolean
+- section: "194C_individual" | "194C_company" | "194J"
+- rate: Numeric (1.0, 2.0, or 10.0)
+- threshold_annual: Numeric (default 30000)
+- accumulated_payments_this_year: Numeric
+```
+See .agents/skills/finance-module/SKILL.md Rule 6 for payment-time logic.
 
 ---
 
 ## 4. Indian Financial Year
 - **April 1 to March 31** — not January to December
 - All reports, payroll runs, invoice series must use this calendar
-- Store `financial_year` as `VARCHAR` in format `"2425"` (for FY 2024-25)
+- Store `financial_year` as `VARCHAR` in format `"2526"` (for FY 2025-26)
+
+FY code = last 2 digits of start year + last 2 digits of end year:
+```
+  FY 2024-25 → "2425"
+  FY 2025-26 → "2526"
+  FY 2026-27 → "2627"
+  Date 2026-03-14 → "2526" (still in 2025-26 FY)
+  Date 2026-04-01 → "2627" (new FY starts April 1)
+```
 
 ---
 
@@ -120,3 +169,63 @@ TN = Tamil Nadu, GJ = Gujarat, RJ = Rajasthan,
 UP = Uttar Pradesh, WB = West Bengal, etc.
 ```
 Used to auto-determine CGST/SGST vs IGST on every invoice.
+
+---
+
+## 6. Finance — Invoice Compliance Rules
+
+### Mandatory Fields on GST Invoice (B2B India)
+Every submitted invoice for an Indian B2B transaction must have:
+- Company GSTIN (15 characters, alphanumeric)
+- Client GSTIN (15 characters) — required for B2B, optional B2C
+- HSN code (goods) or SAC code (services) on every line item
+- Sequential invoice number per FY (INV-YYYY-NNNN format)
+- Invoice date (posting_date)
+- Taxable value per line item
+- CGST amount + SGST amount (intra-state) OR IGST amount (inter-state)
+  — stored separately, never combined
+- Total taxable value, total tax, total invoice value
+- Place of supply (client state code)
+
+### CGST/SGST vs IGST Determination
+```
+company.state_code == client.state_code (both Indian, same state)
+  → CGST + SGST (each at half the total GST rate)
+  → e.g. GST 18%: CGST 9% + SGST 9%
+
+company.state_code != client.state_code (both Indian, different states)
+  → IGST (full GST rate as single line)
+  → e.g. GST 18%: IGST 18%
+
+client.country_code != "IN" (export / foreign client)
+  → Zero rated export — no GST applies
+  → Mark as export supply on invoice
+
+Either state_code is None
+  → Cannot determine — store as "none", apply zero tax
+  → Human must correct before submitting
+```
+
+### Invoice Numbering — Financial Year
+```
+Format: INV-{FY}-{NNNN zero-padded to 4 digits}
+Examples:
+  INV-2526-0001  (first invoice of FY 2025-26)
+  QT-2526-0001   (first quote of FY 2025-26)
+  PI-2526-0001   (first proforma of FY 2025-26)
+
+Numbering resets to 0001 at FY start, per company.
+```
+
+### Multi-Currency Invoicing for Indian Companies
+Indian companies can invoice in foreign currency (USD, GBP, AED etc.)
+but must report GST in INR.
+
+```
+Rules:
+- Invoice amount in client's currency (e.g. USD 10,000)
+- Exchange rate at invoice date (RBI reference rate or contracted rate)
+- base_total_amount stored in INR for reporting
+- For export invoices: GST is zero-rated regardless of currency
+- TDS (if applicable) is always calculated and deducted in INR
+```

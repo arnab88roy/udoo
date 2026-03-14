@@ -91,6 +91,18 @@ from app.modules.payroll.router import (
     salary_structure_router,
     salary_slip_router
 )
+from app.modules.finance.router import (
+    exchange_rate_router,
+    tax_template_router,
+    client_router,
+    quote_router,
+    proforma_router,
+    invoice_router,
+    payment_router,
+    recurring_router,
+    salary_slip_html_router,
+    finance_reports_router
+)
 
 app.include_router(core_masters_router, prefix="/api")
 app.include_router(org_masters_router, prefix="/api")
@@ -108,6 +120,18 @@ app.include_router(pt_slab_router, prefix="/api")
 app.include_router(salary_component_router, prefix="/api")
 app.include_router(salary_structure_router, prefix="/api")
 app.include_router(salary_slip_router, prefix="/api")
+
+# Finance Routers
+app.include_router(exchange_rate_router, prefix="/api")
+app.include_router(tax_template_router, prefix="/api")
+app.include_router(client_router, prefix="/api")
+app.include_router(quote_router, prefix="/api")
+app.include_router(proforma_router, prefix="/api")
+app.include_router(invoice_router, prefix="/api")
+app.include_router(payment_router, prefix="/api")
+app.include_router(recurring_router, prefix="/api")
+app.include_router(salary_slip_html_router, prefix="/api")
+app.include_router(finance_reports_router, prefix="/api")
 
 from app.utils.veda_context import sanitise_request_context, describe_context
 
