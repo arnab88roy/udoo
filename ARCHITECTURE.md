@@ -1,5 +1,23 @@
 # Udoo ERP — Architecture Reference
 
+---
+
+## Repository
+
+**GitHub (Public):** https://github.com/arnab88roy/udoo
+**Raw file access:** https://raw.githubusercontent.com/arnab88roy/udoo/main/
+
+To read any file directly:
+  https://raw.githubusercontent.com/arnab88roy/udoo/main/{path/to/file}
+
+Examples:
+  https://raw.githubusercontent.com/arnab88roy/udoo/main/tasks.md
+  https://raw.githubusercontent.com/arnab88roy/udoo/main/ARCHITECTURE.md
+  https://raw.githubusercontent.com/arnab88roy/udoo/main/backend/app/modules/finance/models.py
+  https://raw.githubusercontent.com/arnab88roy/udoo/main/.agents/skills/finance-module/SKILL.md
+
+---
+
 ## Product Vision
 AI-first B2B SaaS ERP for Indian SMEs.
 Primary interface is VEDA chat, not forms.
