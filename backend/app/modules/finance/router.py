@@ -25,7 +25,7 @@ from app.modules.finance.schemas import (
     QuoteCreate, QuoteUpdate, QuoteResponse,
     ProformaCreate, ProformaResponse,
     InvoiceCreate, InvoiceUpdate, InvoiceResponse,
-    PaymentCreate, PaymentResponse,
+    PaymentBase, PaymentCreate, PaymentResponse,
     RecurringInvoiceConfigCreate, RecurringInvoiceConfigUpdate, RecurringInvoiceConfigResponse,
     ConvertToInvoiceRequest, FetchExchangeRateRequest, FetchExchangeRateResponse
 )
@@ -328,18 +328,54 @@ async def create_invoice(
             invoice_id=invoice.id,
             tenant_id=current_user.tenant_id
         )
-        # Calculation logic same as quote
-        line.taxable_amount = (line.quantity * line.rate * (1 - line.discount_percent/100)).quantize(Decimal("0.01"))
-        
-        # TDS logic here for entire invoice if applicable
-        # (Simplified: typically TDS is deducted at payment time, but we store it as reference on invoice)
-        
+
+        # Calculate taxable_amount
+        line.taxable_amount = (
+            line.quantity * line.rate * (1 - line.discount_percent / 100)
+        ).quantize(Decimal("0.01"))
+
+        # Calculate tax using GSTCalculator if template provided
+        effective_template_id = line.tax_template_id or invoice.tax_template_id
+        if effective_template_id:
+            stmt = select(TaxTemplateLine).where(
+                TaxTemplateLine.tax_template_id == effective_template_id
+            )
+            lines_res = await db.execute(stmt)
+            template_lines = [
+                {"rate": l.rate, "tax_name": l.tax_name}
+                for l in lines_res.scalars()
+            ]
+
+            stmt = select(Client).where(Client.id == invoice.client_id)
+            cl_res = await db.execute(stmt)
+            client_obj = cl_res.scalar_one()
+
+            from app.modules.core_masters.models import Company
+            stmt = select(Company).where(Company.id == invoice.company_id)
+            co_res = await db.execute(stmt)
+            company_obj = co_res.scalar_one()
+
+            gst_type = GSTCalculator.determine_gst_type(
+                company_obj.state_code,
+                client_obj.state_code,
+                client_obj.country_code
+            )
+            tax_breakdown = GSTCalculator.calculate_line_tax(
+                line.taxable_amount, template_lines, gst_type
+            )
+            line.tax_amount = tax_breakdown["total_tax"]
+        else:
+            line.tax_amount = Decimal("0")
+
+        line.line_total = line.taxable_amount + line.tax_amount
         db.add(line)
         subtotal += line.taxable_amount
-        # ... tax calculation skipped for brevity ...
-    
+        total_tax += line.tax_amount
+
+    # Update invoice totals after the loop
     invoice.subtotal = subtotal
-    invoice.total_amount = subtotal # Assuming zero tax for now if simplified
+    invoice.total_tax = total_tax
+    invoice.total_amount = subtotal + total_tax
     invoice.outstanding_amount = invoice.total_amount
     invoice.base_total_amount = invoice.total_amount * invoice.exchange_rate
     
@@ -470,19 +506,403 @@ async def get_outstanding_report(
 # Implementations follow the same pattern as above.
 
 @proforma_router.post("/finance/proforma-invoices/", response_model=ProformaResponse, status_code=201)
-async def create_proforma(data: ProformaCreate, db: AsyncSession = Depends(get_db), cur: UserContext = Depends(get_current_user)):
-    require_permission(cur, "finance", "create")
-    # ... logic ...
-    return {}
+async def create_proforma(
+    data: ProformaCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "create")
+    
+    proforma_dict = data.model_dump(exclude={"line_items"})
+    proforma = ProformaInvoice(**proforma_dict, tenant_id=current_user.tenant_id)
+    
+    db.add(proforma)
+    await db.flush()
+    
+    subtotal = Decimal("0")
+    total_tax = Decimal("0")
+    
+    for line_data in data.line_items:
+        line = ProformaLineItem(
+            **line_data.model_dump(),
+            proforma_id=proforma.id,
+            tenant_id=current_user.tenant_id
+        )
+        line.taxable_amount = (line.quantity * line.rate * (1 - line.discount_percent/100)).quantize(Decimal("0.01"))
+        
+        # GST Calculation (identical to Quote/Invoice)
+        effective_template_id = line.tax_template_id or proforma.tax_template_id
+        if effective_template_id:
+            stmt = select(TaxTemplateLine).where(TaxTemplateLine.tax_template_id == effective_template_id)
+            lines_res = await db.execute(stmt)
+            template_lines = [{"rate": l.rate, "tax_name": l.tax_name} for l in lines_res.scalars()]
+            
+            stmt = select(Client).where(Client.id == proforma.client_id)
+            cl_res = await db.execute(stmt)
+            client_obj = cl_res.scalar_one()
+            
+            from app.modules.core_masters.models import Company
+            stmt = select(Company).where(Company.id == proforma.company_id)
+            co_res = await db.execute(stmt)
+            company_obj = co_res.scalar_one()
+            
+            gst_type = GSTCalculator.determine_gst_type(company_obj.state_code, client_obj.state_code, client_obj.country_code)
+            tax_breakdown = GSTCalculator.calculate_line_tax(line.taxable_amount, template_lines, gst_type)
+            line.tax_amount = tax_breakdown["total_tax"]
+        else:
+            line.tax_amount = Decimal("0")
+            
+        line.line_total = line.taxable_amount + line.tax_amount
+        db.add(line)
+        subtotal += line.taxable_amount
+        total_tax += line.tax_amount
+        
+    proforma.subtotal = subtotal
+    proforma.total_tax = total_tax
+    proforma.total_amount = subtotal + total_tax
+    proforma.base_total_amount = proforma.total_amount * proforma.exchange_rate
+    
+    await db.commit()
+    
+    stmt = select(ProformaInvoice).options(selectinload(ProformaInvoice.line_items)).where(ProformaInvoice.id == proforma.id)
+    result = await db.execute(stmt)
+    return result.scalar_one()
+
+@proforma_router.get("/finance/proforma-invoices/", response_model=List[ProformaResponse])
+async def list_proformas(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "view")
+    stmt = select(ProformaInvoice).options(selectinload(ProformaInvoice.line_items)).where(
+        ProformaInvoice.tenant_id == current_user.tenant_id
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+@proforma_router.get("/finance/proforma-invoices/{id}", response_model=ProformaResponse)
+async def get_proforma(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "view")
+    stmt = select(ProformaInvoice).options(selectinload(ProformaInvoice.line_items)).where(
+        ProformaInvoice.id == id,
+        ProformaInvoice.tenant_id == current_user.tenant_id
+    )
+    res = await db.execute(stmt)
+    proforma = res.scalar_one_or_none()
+    if not proforma:
+        raise HTTPException(status_code=404, detail="Proforma invoice not found.")
+    return proforma
+
+@proforma_router.post("/finance/proforma-invoices/{id}/submit", response_model=ProformaResponse)
+async def submit_proforma(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "submit")
+    stmt = select(ProformaInvoice).where(ProformaInvoice.id == id, ProformaInvoice.tenant_id == current_user.tenant_id)
+    res = await db.execute(stmt)
+    proforma = res.scalar_one()
+    
+    if proforma.docstatus != 0:
+        raise HTTPException(status_code=400, detail="Only drafts can be submitted.")
+    
+    proforma.docstatus = 1
+    proforma.proforma_number = await get_next_number(db, current_user.tenant_id, proforma.company_id, "PI", proforma.posting_date)
+    proforma.exchange_rate_locked = True
+    
+    await db.commit()
+    
+    stmt = select(ProformaInvoice).options(selectinload(ProformaInvoice.line_items)).where(ProformaInvoice.id == id)
+    res = await db.execute(stmt)
+    return res.scalar_one()
+
+@proforma_router.post("/finance/proforma-invoices/{id}/cancel", response_model=ProformaResponse)
+async def cancel_proforma(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "cancel")
+    stmt = select(ProformaInvoice).where(ProformaInvoice.id == id, ProformaInvoice.tenant_id == current_user.tenant_id)
+    res = await db.execute(stmt)
+    proforma = res.scalar_one()
+    
+    if proforma.docstatus != 1:
+        raise HTTPException(status_code=400, detail="Only submitted invoices can be cancelled.")
+    
+    proforma.docstatus = 2
+    proforma.status = "Cancelled"
+    await db.commit()
+    
+    stmt = select(ProformaInvoice).options(selectinload(ProformaInvoice.line_items)).where(ProformaInvoice.id == id)
+    res = await db.execute(stmt)
+    return res.scalar_one()
+
+@proforma_router.post("/finance/proforma-invoices/{id}/convert-to-invoice", response_model=InvoiceResponse)
+async def convert_proforma_to_invoice(
+    id: UUID,
+    data: ConvertToInvoiceRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "create")
+    
+    # Fetch proforma with line items
+    stmt = select(ProformaInvoice).options(selectinload(ProformaInvoice.line_items)).where(
+        ProformaInvoice.id == id,
+        ProformaInvoice.tenant_id == current_user.tenant_id
+    )
+    res = await db.execute(stmt)
+    proforma = res.scalar_one_or_none()
+    
+    if not proforma:
+        raise HTTPException(status_code=404, detail="Proforma not found.")
+    if proforma.docstatus != 1:
+        raise HTTPException(status_code=400, detail="Only submitted proformas can be converted.")
+    
+    # Create Invoice
+    invoice = Invoice(
+        company_id=proforma.company_id,
+        client_id=proforma.client_id,
+        proforma_id=proforma.id,
+        quote_id=proforma.quote_id,
+        currency_id=proforma.currency_id,
+        exchange_rate=proforma.exchange_rate,
+        exchange_rate_locked=proforma.exchange_rate_locked,
+        tax_template_id=proforma.tax_template_id,
+        posting_date=data.posting_date,
+        due_date=data.due_date,
+        subtotal=proforma.subtotal,
+        total_tax=proforma.total_tax,
+        total_amount=proforma.total_amount,
+        base_total_amount=proforma.base_total_amount,
+        outstanding_amount=proforma.total_amount,
+        notes=proforma.notes,
+        terms=proforma.terms,
+        tenant_id=current_user.tenant_id
+    )
+    db.add(invoice)
+    await db.flush()
+    
+    # Copy lines
+    for p_line in proforma.line_items:
+        i_line = InvoiceLineItem(
+            description=p_line.description,
+            hsn_sac_code=p_line.hsn_sac_code,
+            quantity=p_line.quantity,
+            rate=p_line.rate,
+            discount_percent=p_line.discount_percent,
+            tax_template_id=p_line.tax_template_id,
+            taxable_amount=p_line.taxable_amount,
+            tax_amount=p_line.tax_amount,
+            line_total=p_line.line_total,
+            order_index=p_line.order_index,
+            invoice_id=invoice.id,
+            tenant_id=current_user.tenant_id
+        )
+        db.add(i_line)
+    
+    await db.commit()
+    
+    # Return with lines
+    stmt = select(Invoice).options(selectinload(Invoice.line_items), selectinload(Invoice.payments)).where(Invoice.id == invoice.id)
+    res = await db.execute(stmt)
+    return res.scalar_one()
 
 @recurring_router.post("/finance/recurring-invoices/", response_model=RecurringInvoiceConfigResponse, status_code=201)
-async def create_recurring(data: RecurringInvoiceConfigCreate, db: AsyncSession = Depends(get_db), cur: UserContext = Depends(get_current_user)):
-    require_permission(cur, "finance", "create")
-    # ... logic ...
-    return {}
+async def create_recurring(
+    data: RecurringInvoiceConfigCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "create")
+
+    # Verify template invoice exists and is submitted (docstatus=1)
+    stmt = select(Invoice).where(
+        Invoice.id == data.template_invoice_id,
+        Invoice.tenant_id == current_user.tenant_id
+    )
+    res = await db.execute(stmt)
+    template = res.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template invoice not found.")
+    if template.docstatus != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Template invoice must be submitted (docstatus=1)."
+        )
+
+    config = RecurringInvoiceConfig(
+        **data.model_dump(),
+        tenant_id=current_user.tenant_id
+    )
+    db.add(config)
+    await db.commit()
+    await db.refresh(config)
+    return config
+
+@recurring_router.get("/finance/recurring-invoices/", response_model=List[RecurringInvoiceConfigResponse])
+async def list_recurring(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "view")
+    stmt = select(RecurringInvoiceConfig).where(
+        RecurringInvoiceConfig.tenant_id == current_user.tenant_id
+    )
+    res = await db.execute(stmt)
+    return res.scalars().all()
+
+@recurring_router.patch("/finance/recurring-invoices/{id}", response_model=RecurringInvoiceConfigResponse)
+async def patch_recurring(
+    id: UUID,
+    data: RecurringInvoiceConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "edit")
+    stmt = select(RecurringInvoiceConfig).where(
+        RecurringInvoiceConfig.id == id,
+        RecurringInvoiceConfig.tenant_id == current_user.tenant_id
+    )
+    res = await db.execute(stmt)
+    config = res.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="Config not found.")
+    
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(config, key, value)
+    
+    await db.commit()
+    await db.refresh(config)
+    return config
+
+@recurring_router.post("/finance/recurring-invoices/{id}/pause", response_model=RecurringInvoiceConfigResponse)
+async def pause_recurring(id: UUID, db: AsyncSession = Depends(get_db), cur: UserContext = Depends(get_current_user)):
+    require_permission(cur, "finance", "edit")
+    stmt = update(RecurringInvoiceConfig).where(
+        RecurringInvoiceConfig.id == id,
+        RecurringInvoiceConfig.tenant_id == cur.tenant_id
+    ).values(is_active=False)
+    await db.execute(stmt)
+    await db.commit()
+    res = await db.execute(select(RecurringInvoiceConfig).where(RecurringInvoiceConfig.id == id))
+    return res.scalar_one()
+
+@recurring_router.post("/finance/recurring-invoices/{id}/resume", response_model=RecurringInvoiceConfigResponse)
+async def resume_recurring(id: UUID, db: AsyncSession = Depends(get_db), cur: UserContext = Depends(get_current_user)):
+    require_permission(cur, "finance", "edit")
+    stmt = update(RecurringInvoiceConfig).where(
+        RecurringInvoiceConfig.id == id,
+        RecurringInvoiceConfig.tenant_id == cur.tenant_id
+    ).values(is_active=True)
+    await db.execute(stmt)
+    await db.commit()
+    res = await db.execute(select(RecurringInvoiceConfig).where(RecurringInvoiceConfig.id == id))
+    return res.scalar_one()
 
 @salary_slip_html_router.get("/finance/salary-slips/{id}/html")
-async def get_salary_slip_html(id: UUID, db: AsyncSession = Depends(get_db), cur: UserContext = Depends(get_current_user)):
-    require_permission(cur, "finance", "view")
-    # This reads from payroll module — return print-ready HTML
-    return Response(content="<html><body>Salary Slip Content</body></html>", media_type="text/html")
+async def get_salary_slip_html(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user)
+):
+    require_permission(current_user, "finance", "view")
+
+    # Import from payroll module — read only, never write
+    from app.modules.payroll.models import SalarySlip, SalarySlipEarning, SalarySlipDeduction
+    from app.modules.hr_masters.models import Employee
+    from app.modules.core_masters.models import Company
+
+    stmt = select(SalarySlip).options(
+        selectinload(SalarySlip.earnings),
+        selectinload(SalarySlip.deductions)
+    ).where(
+        SalarySlip.id == id,
+        SalarySlip.tenant_id == current_user.tenant_id
+    )
+    res = await db.execute(stmt)
+    slip = res.scalar_one_or_none()
+    if not slip:
+        raise HTTPException(status_code=404, detail="Salary slip not found.")
+
+    # Fetch employee and company
+    emp_stmt = select(Employee).where(Employee.id == slip.employee_id)
+    emp_res = await db.execute(emp_stmt)
+    employee = emp_res.scalar_one_or_none()
+
+    co_stmt = select(Company).where(Company.id == slip.company_id)
+    co_res = await db.execute(co_stmt)
+    company = co_res.scalar_one_or_none()
+
+    emp_name = employee.first_name + " " + employee.last_name if employee else "Unknown"
+    co_name = company.company_name if company else "Unknown"
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Salary Slip</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
+            h1 {{ color: #1a1a2e; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+            th {{ background: #f0f0f0; text-align: left; padding: 8px; }}
+            td {{ padding: 8px; border-bottom: 1px solid #eee; }}
+            .total {{ font-weight: bold; background: #f9f9f9; }}
+            .header {{ display: flex; justify-content: space-between; }}
+            @media print {{ button {{ display: none; }} }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div><h1>{co_name}</h1></div>
+            <div><button onclick="window.print()">Print / Save PDF</button></div>
+        </div>
+        <h2>Salary Slip — {slip.payroll_month}/{slip.payroll_year}</h2>
+        <p><strong>Employee:</strong> {emp_name}</p>
+        <p><strong>Working Days:</strong> {slip.working_days} &nbsp;
+           <strong>Present Days:</strong> {slip.present_days} &nbsp;
+           <strong>LOP Days:</strong> {slip.lop_days}</p>
+
+        <table>
+            <tr><th>Earnings</th><th>Amount (₹)</th><th>Deductions</th><th>Amount (₹)</th></tr>
+    """
+
+    earnings = slip.earnings or []
+    deductions = slip.deductions or []
+    max_rows = max(len(earnings), len(deductions))
+
+    for i in range(max_rows):
+        e = earnings[i] if i < len(earnings) else None
+        d = deductions[i] if i < len(deductions) else None
+        e_name = e.component_name if e else ""
+        e_amt = f"{e.amount:,.2f}" if e else ""
+        d_name = d.component_name if d else ""
+        d_amt = f"{d.amount:,.2f}" if d else ""
+        html += f"<tr><td>{e_name}</td><td>{e_amt}</td><td>{d_name}</td><td>{d_amt}</td></tr>"
+
+    html += f"""
+            <tr class="total">
+                <td>Gross Earnings</td>
+                <td>{slip.gross_earnings:,.2f}</td>
+                <td>Total Deductions</td>
+                <td>{slip.total_deductions:,.2f}</td>
+            </tr>
+        </table>
+        <h3>Net Pay: ₹{slip.net_pay:,.2f}</h3>
+        <p style="font-size:11px;color:#999;">
+            PF (Employer): ₹{slip.pf_employer:,.2f} &nbsp;
+            ESI (Employer): ₹{slip.esi_employer:,.2f}
+        </p>
+    </body>
+    </html>
+    """
+
+    return Response(content=html, media_type="text/html")

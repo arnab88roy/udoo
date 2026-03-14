@@ -39,6 +39,16 @@ class TaxTemplateBase(BaseModel):
 class TaxTemplateCreate(TaxTemplateBase):
     lines: List[TaxTemplateLineCreate] = Field(..., description="Tax component lines.")
 
+class TaxTemplateUpdate(BaseModel):
+    template_name: Optional[str] = Field(None,
+        description="Updated display name.")
+    country_code: Optional[str] = Field(None,
+        description="ISO 2-letter country code.")
+    description: Optional[str] = Field(None,
+        description="Template description.")
+    is_active: Optional[bool] = Field(None,
+        description="Set to False to deactivate without deleting.")
+
 class TaxTemplateResponse(TaxTemplateBase, CoreMasterSchemaResponse):
     lines: List[TaxTemplateLineResponse]
 
