@@ -108,6 +108,10 @@ Both can touch it. No handoff ceremony. No mode switching.
       VEDA permission check before suggesting actions.
     - [x] *Gate:* File exists at `.agents/skills/rbac-and-scope/SKILL.md`
 
+- [x] **Task 1.14:** Create `.agents/skills/finance-module/SKILL.md`
+    - Finance module rules, router map, state machines, VEDA integration patterns, Indian compliance rules specific to invoicing.
+    - [x] *Gate:* File exists at `.agents/skills/finance-module/SKILL.md`
+
 ---
 
 ## Phase 2: Backend MVP — HRMS Vertical Slice
@@ -265,7 +269,7 @@ Both can touch it. No handoff ceremony. No mode switching.
     - [x] *Gate:* Employee-role token receives 403 on payroll endpoint
     - [x] *Gate:* Org scope query returns correct subordinate IDs
 
-- [ ] **Task 2.11:** Quote & Invoice Module (Finance)
+- [x] **Task 2.11:** Quote & Invoice Module (Finance)
     *Requires Task 2.10 to be complete — built with RBAC from day one.*
     *New module:* `backend/app/modules/finance/`
 
