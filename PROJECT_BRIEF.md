@@ -1,171 +1,287 @@
-# PROJECT BRIEF: AI-Native ERP Meta-Engine
+# PROJECT BRIEF: Udoo — AI-Native ERP for Indian SMEs
 
 ## 1. Project Identity
 
-**Product Name:** Udoo (AI-Native ERP Meta-Engine)
-**Tagline:** The speed of a Modular Monolith with the intelligence of an AI-Native OS.
-**Elevator Pitch:** Udoo is a next-generation Enterprise Resource Planning (ERP) platform architected from the ground up to merge the robust, metadata-driven structure of traditional ERPs (like Frappe/ERPNext) with async Python scale and native AI orchestration. It replaces hundreds of static screens with a dynamic frontend powered by strict backend schemas, while autonomous AI agents execute transactional workflows exactly as human users would.
+**Product Name:** Udoo
+**Tagline:** The conversation IS the ERP.
+**Elevator Pitch:** Udoo is an AI-first, multi-tenant B2B SaaS ERP built
+for Indian small and medium businesses (1–50+ employees). The primary
+interface is VEDA (Virtual Enterprise Decision Assistant) — an AI agent
+that understands business context, enforces Indian compliance, and
+orchestrates workflows across all modules. Users talk to VEDA instead
+of navigating menus. Traditional module screens are the escape hatch for
+power users, not the primary interface.
+
+**The Cursor Analogy:**
+Udoo is to business operations what Cursor is to coding. The human and
+VEDA are co-authors of the same business record. Both can touch it.
+No handoff ceremony. No mode switching.
+
+**Three Rules of Co-Authorship:**
+- Rule 1 — No silos: Every VEDA action writes to the same Postgres
+  tables the form UI reads from.
+- Rule 2 — Interruptible: Human can take over mid-task always.
+  VEDA can take over a human-started task always.
+- Rule 3 — Transparent diffs: Every field VEDA fills carries a visual
+  attribution (purple tint). Human can accept all, reject all, or edit
+  field by field.
 
 **Target Market:**
-- **Customer:** Mid-market to Enterprise organizations.
-- **Size:** 50 - 5000+ employees.
-- **Industry:** Agnostic core engine with industry-specific vertical modules (starting with HRMS).
-- **Geography:** Global, with a structured roadmap for Indian localization and statutory compliance.
+- **Customer:** Indian small and medium enterprises
+- **Size:** 1–50+ employees, expanding to 5000+
+- **Industry:** Agnostic core engine, starting with HRMS + Finance
+- **Geography:** India-first, globally deployable architecture
 
 **Problem Addressed:**
-Traditional ERPs (like Odoo or ERPNext) suffer from technological debt, synchronous blocking architectures, and bolted-on "chatbots" that cannot execute actual business logic. Existing solutions fail modern enterprises that require highly concurrent, API-first software where AI operates as a deeply integrated functional worker rather than a superficial text generator.
+Traditional ERPs (Odoo, ERPNext) have technological debt, synchronous
+blocking architectures, and bolted-on chatbots that cannot execute real
+business logic. Indian SMEs specifically suffer from complex compliance
+requirements (GST, PF, ESI, TDS) that existing tools handle poorly.
+Udoo replaces static screens with an AI-native interface backed by
+strict API contracts and Indian compliance built in from day one.
+
+**Competitive Positioning:**
+- **Vs. Odoo:** No XML view definitions, no monolithic ORM coupling.
+  Strict OpenAPI/Pydantic contracts, fully decoupled modern frontend.
+- **Vs. ERPNext/Frappe:** Replicates Frappe's DocType genius but
+  replaces synchronous Python/MariaDB with fully async FastAPI +
+  PostgreSQL with RLS. AI agents are native supervisors, not
+  aftermarket add-ons.
+- **Vs. greytHR/Zoho:** AI-first interface, developer-grade
+  architecture, open API, no per-module pricing walls.
 
 ---
 
 ## 2. Business Model
 
-**Pricing Strategy:** NOT YET DEFINED
-**GTM (Go-To-Market) Strategy:** NOT YET DEFINED
-
-**Competitive Positioning:**
-- **Vs. Odoo:** Avoids Odoo's heavy XML-based view definitions and monolithic ORM coupling. Udoo enforces strict API contracts (OpenAPI/Pydantic) allowing for fully decoupled, modern SPA/PWA frontends.
-- **Vs. ERPNext/Frappe:** Replicates Frappe's genius "Meta-Engine" (DocTypes, state machines, linked documents) but discards its synchronous Python/MariaDB legacy in favor of fully asynchronous FastAPI, Pydantic, and PostgreSQL with Row-Level Security (RLS). Furthermore, AI agents function natively as supervisors and domain experts (via LangGraph and CrewAI) rather than aftermarket add-ons.
+**Pricing Strategy:** First seat free (1 year) → tiered per-seat model
+**GTM Strategy:** Product-led growth — VEDA onboarding in 5 questions,
+zero setup friction
+**Primary Geography:** India first, then Southeast Asia
 
 ---
 
-## 3. Complete Module Roadmap
-
-### Phase 2: Backend MVP (HRMS Vertical Slice)
-- **Core Masters (Gender, Salutation, etc.):** Complete
-- **Org Masters (Branch, Designation, Department, etc.):** Complete
-- **Dependent Masters (Holiday List):** Complete
-- **Employee Master & Child Tables:** Complete
-- **Transactional Modules (Leave):** Complete
-- **Transactional Modules (Attendance):** Planned
-
-### Phase 5+: Horizontal Scaling (Future)
-- **Payroll & Expense Management:** Planned
-- **Accounting & Financial Management:** Planned
-- **CRM & Sales:** Planned
-- **Inventory & Manufacturing:** Planned
-
-**Priority Order:** Environment Setup -> Agent Skills -> HRMS Backend MVP -> Frontend MVP -> Agentic Orchestration -> Horizontal Scaling (Other Modules).
-
-**Indian Compliance Requirements (per module):**
-- **HRMS/Payroll:** PF, ESI, PT, TDS (Planned - Pending Implementation)
-- **Accounting/Sales:** GST (Planned - Pending Implementation)
-
----
-
-## 4. Current Tech Stack
+## 3. Tech Stack
 
 **Backend:**
-- Python 3.9+ 
-- FastAPI `fastapi[standard]` (Web Framework)
-- Uvicorn `uvicorn` (ASGI Server)
-- SQLAlchemy `sqlalchemy` (Async ORM)
-- Alembic `alembic` (Database Migrations)
-- asyncpg `asyncpg` (PostgreSQL Driver)
-- Pydantic `pydantic` (Data Validation & Schema Generation)
-- LangGraph `langgraph` (AI Orchestration - Supervisor)
-- CrewAI `crewai` (AI Domain Agents)
-- Pytest `pytest`, `pytest-asyncio` (Testing)
-
-**Frontend:**
-- Next.js (React Framework)
-- Supabase JS Client `supabase@^2.76.15`
-
-**Infrastructure & Hosting:**
-- PostgreSQL via Supabase (Database Platform) - Hosted on AWS `ap-southeast-2` (Sydney).
-
-**Third-Party Integrations:**
-- OpenAI / LLM Providers (via LangGraph/CrewAI) - Planned
-- *Other Integrations:* NOT YET DEFINED
-
----
-
-## 5. Current Architecture
-
-**Folder Structure (Backend):**
-- `backend/app/`: Core application logic.
-  - `main.py`: FastAPI application entrypoint, global OpenAPI configuration, JWT Middleware for RLS.
-  - `dependencies.py`: FastAPI dependency injection (e.g., `get_db`, `get_tenant_id`).
-  - `db/database.py`: SQLAlchemy asynchronous engine and session maker setup.
-  - `modules/`: Modular Monolith boundaries.
-    - `core_masters/`: Base models, Users, Currencies, global lists.
-    - `org_masters/`: Departments, Employee Grades, structural definitions.
-    - `hr_masters/`: Employee records, Leave types, Leave Applications, Attendance.
-- `backend/alembic/`: Database migration scripts.
-  - `versions/`: Sequential schema changes (e.g., `3abef1e5ef82_add_leavetype_and_leaveapplication.py`).
-- `.agents/`: AI configuration and behavioral rules.
-  - `skills/`: Markdown criteria for AI code generation (e.g., `fastapi-crud-generator`, `rls-security`).
-  - `specs/`: Data definition documents (like Frappe DocTypes) dictating schemas for the AI.
-  - `workflows/`: Standard operating procedures for AI tasks (e.g., `build-from-spec`).
-
-**Multi-Tenancy Implementation:**
-Universal single-database/single-schema design isolated via PostgreSQL Row-Level Security (RLS). 
-1. Every table extends `CoreMasterBase` which mandates a `tenant_id` UUID column.
-2. Migrations automatically append `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and attach a strict policy.
-3. FastAPI custom middleware extracts the JWT, and dependency injection (`Depends(get_tenant_id)`) guarantees every database query filters strictly by the authenticated tenant. Cross-tenant leakage is blocked at the database execution level via `current_setting('app.current_tenant_id')` logic mapped to the JWT.
-
-**DocStatus State Machine:**
-Replicates the Frappe human-in-the-loop workflow.
-1. All transactional entities (e.g., `LeaveApplication`) include an integer `docstatus` column.
-2. 0 = Draft, 1 = Submitted, 2 = Cancelled.
-3. Explicit REST endpoints drive the transition (e.g., `POST /{id}/submit`, `POST /{id}/approve`).
-4. The backend validates rules before transition (e.g., only a Draft `docstatus=0` can be Submitted to `docstatus=1`).
+- Python 3.11+
+- FastAPI `fastapi[standard]` — async web framework
+- SQLAlchemy — async ORM
+- Alembic — sole migration source of truth (never Supabase SQL editor)
+- asyncpg — PostgreSQL async driver
+- Pydantic — data validation + OpenAPI schema generation
+- python-jose — JWT (HS256), tenant_id + user_id + role in payload
+- bcrypt — password hashing
 
 **AI Layer:**
-The AI functions as a transactional backend worker, not a chatbot frontend.
-1. **Supervisor (LangGraph):** Manages overarching workflows and routing decisions.
-2. **Workers (CrewAI):** Specialized domain agents (e.g., "HR Assistant").
-These agents interact exclusively via the identical FastAPI endpoints utilized by human users. They must serialize requests matching the precise Pydantic validation requirements. Humans monitor their draft creations via the `docstatus=0` queue.
+- LangGraph — supervisor + domain agent orchestration
+- Claude (Anthropic) — primary LLM for VEDA
+- UIResponse — typed Pydantic schema for all VEDA outputs
+  (7 response types: TABLE, FORM, APPROVAL, BLOCKER, CONFIRM,
+  PROGRESS, TEXT)
+
+**Database:**
+- PostgreSQL via Supabase (AWS ap-southeast-1)
+- Row Level Security (RLS) enforced at DB level via tenant_id
+- Alembic manages all schema changes — single source of truth
+
+**Frontend:**
+- Next.js 16 + Tailwind CSS + shadcn/ui + Lucide
+- Vercel AI SDK (useChat hook + streamText for streaming)
+- Browser-based IDE shell layout (4 panels — non-negotiable)
 
 ---
 
-## 6. Current Development Status
+## 4. Architecture Principles
 
-**Task Completion Status (from `tasks.md`):**
-- [x] Task 0.1: Initialize Python virtual environment.
-- [x] Task 0.2: Setup backend/app/main.py with FastAPI & JWT.
-- [ ] Task 0.3: Configure PostgreSQL MCP Server (Supabase).
-- [ ] Task 1.1: Create skills/fastapi-crud-generator/SKILL.md. *(Note: File exists but task is unchecked in tasks.md)*
-- [ ] Task 1.2: Create skills/erp-relationships/SKILL.md. *(Note: File exists but task is unchecked in tasks.md)*
-- [ ] Task 1.3: Create skills/rls-security/SKILL.md. *(Note: File exists but task is unchecked in tasks.md)*
-- [x] Task 2.1: Build Standalone Core Masters.
-- [x] Task 2.2: Build Standalone Org Masters.
-- [x] Task 2.3: Build Dependent Masters (Requires Company).
-- [x] Task 2.4: Build Employee Master & Child Tables.
-- [x] Task 2.5: Build Transactional Modules (Leave partial completion checked). *(Attendance pending)*
-- [ ] Task 3.1: Initialize React/Vue environment with Tailwind CSS.
-- [ ] Task 3.2: Build GenericDataTable and GenericErpForm.
-- [ ] Task 3.3: Build HITL Approval Dashboard.
-- [ ] Task 4.1: Build LangGraph Supervisor & HR Agent.
-- [ ] Task 5.1 -> 5.4: Horizontal Scaling.
+**Multi-Tenancy:**
+Every table has `tenant_id`. Supabase RLS enforces isolation at the
+database level. JWT middleware extracts tenant_id on every request.
+App-level and DB-level filtering both enforced (defense in depth).
 
-**What is working and verified:**
-The foundational backend architecture is highly stable. FastAPI router configuration, SQLAlchemy Async ORM mappings, comprehensive database migrations, RLS tenant isolation injection, child table nested routing (`selectinload`), and the DocStatus workflow (`submit` and `approve` transitions) for Leave Applications have been successfully manually verified via Swagger UI.
+**DocStatus State Machine:**
+All transactional documents follow:
+Draft (0) → Submitted (1) → Cancelled (2)
+Explicit REST endpoints drive transitions (`/submit`, `/approve`,
+`/reject`, `/cancel`). Never hard delete transactional records.
 
-**What is partially built:**
-- Task 2.5 is split: Leave Management is fully completed and tested. Attendance Management is drafted in specs but backend code has not yet been generated.
+**RBAC — Six Roles:**
+| Role | HRMS | Payroll | Finance | Settings | CRM | Tasks |
+|---|---|---|---|---|---|---|
+| owner | Full | Full | Full | Full | Full | Full |
+| hr_manager | Full | Full | None | Partial | None | Full |
+| finance_manager | None | View+Approve | Full | Partial | Full | Full |
+| manager | View+Approve (team only) | None | None | None | View+Create | Full |
+| employee | Self only | View self | None | None | None | Own tasks |
+| auditor | View all | View all | View all | View all | View all | View all |
 
-**What is planned but not started:**
-- All Phase 3 Frontend (Generic UI rendering based on OpenAPI schemas).
-- All Phase 4 AI Orchestration (LangGraph integration points).
-- All Phase 5 Horizontal Modules (Payroll, Accounting, CRM, Inventory).
+Permission check pattern on every protected endpoint:
+```python
+require_permission(current_user, "module_name", "action")
+# action: view, create, edit, submit, approve, delete
+```
 
-**Known Bugs / Technical Debt:**
-1. The `jwt_authentication_middleware` in `main.py` is currently utilizing a placeholder extraction method (`X-Tenant-ID` header fallback) rather than full JWT signature cryptographic validation. This must be replaced before production.
-2. `tasks.md` Phase 1 and Task 0.3 checkboxes are out of sync with physical repository state (files exist but checkboxes are untouched).
+**Org Scope:**
+Every list endpoint for manager/employee roles filters via recursive
+PostgreSQL CTE to return only visible employees:
+```python
+visible_ids = await get_visible_employee_ids(db, current_user, tenant_id)
+if visible_ids is not None:
+    query = query.where(Employee.id.in_(visible_ids))
+```
+
+**Audit Trail:**
+`created_by` and `modified_by` auto-populated on every record via
+SQLAlchemy events reading from `current_user_id_ctx` ContextVar.
+No manual passing required in individual endpoints.
+
+**VEDA Personalisation:**
+VEDA's system prompt is dynamically assembled per user from:
+1. Identity: name, designation, company
+2. Permissions: which modules and actions are available
+3. Scope: which employees/records are visible
+4. Context: active record open in the editor
+
+**Core Rules (Non-Negotiable):**
+1. Every table has tenant_id — always filter by it
+2. Transactional tables have docstatus (0/1/2)
+3. Child tables are relational — never JSONB
+4. Alembic is the only migration system
+5. Modules are isolated — no cross-module DB joins
+6. AI agents call the same FastAPI endpoints humans use
 
 ---
 
-## 7. Open Decisions
+## 5. Module Status
 
-**Architectural Decisions Pending:**
-1. Selection of Frontend Framework approach (React vs Vue) to process and render the dense OpenAPI JSON schemas into Generic Forms/DataTables. (Next.js is scaffolded, but exact generic component approach is undecided).
-2. Selection of the caching layer (Redis vs Memcached) for high-frequency master data.
+### Phase 0–1: Foundation (Complete)
+- Environment setup, FastAPI + JWT middleware ✅
+- 14 Agent skill files created in `.agents/skills/` ✅
+- ARCHITECTURE.md, tasks.md, PROJECT_BRIEF.md ✅
 
-**Integrations Pending:**
-1. Selection of standard LLM provider for the API agents (GPT-4o vs Claude 3.5 Sonnet vs open source local models).
-2. specific Payroll calculation engine integration points for Indian Statutory compliance (Internal vs API to greytHR/RazorpayX).
+### Phase 2: Backend MVP (Complete)
+| Module | Key Files | Status |
+|---|---|---|
+| Core Masters | `modules/core_masters/` | ✅ Complete |
+| Org Masters | `modules/org_masters/` | ✅ Complete |
+| Employee Master + Child Tables | `modules/hr_masters/` | ✅ Complete |
+| Leave Management | `modules/hr_masters/routers/leave.py` | ✅ Complete |
+| Attendance Management | `modules/hr_masters/routers/attendance.py` | ✅ Complete |
+| Payroll (PF/ESI/TDS) | `modules/payroll/` | ✅ Complete |
+| RBAC + Org Scope | `utils/permissions.py`, `utils/org_scope.py` | ✅ Complete |
+| Finance (GST/Invoicing/TDS/Recurring) | `modules/finance/` | ✅ Complete |
+| UIResponse Schema | `schemas/ui_response.py` | ✅ Complete |
+| VEDA Chat Endpoint (stub) | `main.py` POST /api/veda/chat | ✅ Complete |
+| VEDA Context System | `utils/veda_context.py` | ✅ Complete |
 
-**Business Decisions Pending:**
-1. SaaS Pricing Strategy.
-2. Primary GTM motion (PLG vs Enterprise Sales).
-3. First launch geography vs concurrent launch.
+### Phase 3: VEDA AI Layer (Next)
+| Task | Description | Status |
+|---|---|---|
+| Task 3.1 | LangGraph Supervisor + list_employees tool | 🔄 Next |
+| Task 3.2 | HR Agent core tools (leave, attendance) | 📋 Planned |
+| Task 3.3 | HR Agent payroll tools | 📋 Planned |
+| Task 3.4 | Finance Agent | 📋 Planned |
+| Task 3.5 | Policy Engine Schema | 📋 Planned |
+| Task 3.6 | Setup/Onboarding Agent | 📋 Planned |
+| Task 3.7 | Personalised role-aware VEDA greeting | 📋 Planned |
+
+### Phase 4: Frontend IDE Shell (After Phase 3)
+| Task | Description | Status |
+|---|---|---|
+| Task 4.1 | IDE Shell + UIResponse Component Registry | 📋 Planned |
+| Task 4.2 | VEDA Chat Engine (streaming) | 📋 Planned |
+| Task 4.3 | Active Record Context Wiring | 📋 Planned |
+| Task 4.4 | HITL Approval Flow | 📋 Planned |
+| Task 4.5 | VEDA Diff Attribution (purple tint) | 📋 Planned |
+| Task 4.6 | Role-Aware VEDA Hint Chips | 📋 Planned |
+
+### Phase 5: Horizontal Scaling (After Phase 4)
+- Full Payroll Depth (Form 16, bank files, salary revision)
+- Expense Management
+- Full Accounting (Chart of accounts, P&L, GSTR-1, GSTR-3B)
+- CRM & Sales (Quote-to-Cash pipeline)
+- Inventory & Manufacturing
+- WhatsApp Integration (key Indian SME retention feature)
+
+---
+
+## 6. Indian Compliance Built In
+
+**HRMS/Payroll:**
+- PF: 12% employer + 12% employee on basic (ceiling ₹15,000/month)
+- ESI: 3.25% employer + 0.75% employee (ceiling ₹21,000 gross)
+- PT: State-wise professional tax deduction table
+- TDS: Monthly estimated tax on salary
+
+**Finance/Invoicing:**
+- GST: CGST+SGST (intra-state), IGST (inter-state), zero-rated (export)
+- TDS: Section 194C (individual 1%, company 2%), Section 194J (10%)
+- Invoice numbering: Sequential per financial year (INV-2526-0001)
+- GSTIN mandatory on client and company records
+- HSN/SAC code mandatory on all line items
+- TaxTemplate system — globally deployable, not hardcoded to India
+
+---
+
+## 7. Frontend Layout (Non-Negotiable)
+```
+┌────┬─────────────────────────────────────────────────────┐
+│    │                TOP BAR (48px)                        │
+│ A  ├──────────────┬──────────────────┬───────────────────┤
+│ C  │              │                  │                   │
+│ T  │  LEFT PANEL  │  CENTER PANEL    │   RIGHT PANEL     │
+│ I  │  (record     │  ← VEDA CHAT →   │   (record         │
+│ V  │   navigator, │  inline cards    │    inspector,     │
+│ I  │   badges,    │  render here     │    field detail,  │
+│ T  │   reports)   │                  │    audit trail)   │
+│ Y  │              │                  │                   │
+│    │  240px       │  flex: 1         │  300px            │
+└────┴──────────────┴──────────────────┴───────────────────┘
+ 48px
+```
+
+UIResponse Component Registry:
+- TABLE → `<InlineTable />`
+- FORM → `<InlineForm />`
+- APPROVAL → `<ApprovalCard />`
+- BLOCKER → `<BlockerCard />`
+- CONFIRM → `<ConfirmCard />`
+- PROGRESS → `<ProgressCard />`
+- TEXT → `<TextMessage />`
+
+RBAC-aware shell:
+- Activity bar icons only show modules the user has access to
+- Finance icon hidden for hr_manager role
+- HRMS icon hidden for finance_manager role
+- Settings icon only visible to owner and hr_manager
+
+---
+
+## 8. Technical Debt (Before First Paying Customer)
+
+| Item | Description | Priority |
+|---|---|---|
+| TD-2 | DB-level RLS via current_setting in Alembic migrations | High |
+| TD-3 | Audit log table wired to all transactional tables | High |
+| TD-4 | Field(description="...") on all Pydantic schemas | High |
+| TD-7 | Policy engine — approval thresholds not queryable | High |
+| TD-8 | UIResponse schema not yet wired to LangGraph output | High |
+| TD-9 | Vercel AI SDK streaming not yet implemented | Medium |
+| TD-10 | VEDA diff attribution (purple tint) not yet implemented | Medium |
+| TD-11 | Frontend shell uses wrong layout (sidebar vs 4-panel IDE) | Medium |
+| TD-12 | Permission checks missing from existing HRMS/Payroll endpoints | High |
+| TD-13 | Org scope filtering not applied to existing list endpoints | High |
+| TD-14 | Payroll bulk-generate uses company-level salary structure instead of employee-specific | Medium |
+
+---
+
+## 9. Open Decisions
+
+**Business:**
+1. Exact per-seat pricing tiers not yet defined
+2. GTM motion — PLG vs direct sales not finalised
+3. Launch sequencing — India only vs concurrent markets
+
+**Technical:**
+1. Caching layer — Redis vs in-memory for high-frequency master data
+2. WhatsApp integration timeline
