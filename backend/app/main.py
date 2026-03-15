@@ -61,8 +61,6 @@ async def jwt_authentication_middleware(request: Request, call_next):
     # Do NOT read X-Tenant-ID header here — that was the old insecure pattern.
     return await call_next(request)
 
-from app.dependencies import get_tenant_id
-from app.schemas.ui_response import UIResponse, VEDARequest, make_text_response
 
 @app.get("/")
 async def root():
@@ -133,41 +131,54 @@ app.include_router(recurring_router, prefix="/api")
 app.include_router(salary_slip_html_router, prefix="/api")
 app.include_router(finance_reports_router, prefix="/api")
 
-from app.utils.veda_context import sanitise_request_context, describe_context
+from app.dependencies import get_tenant_id, get_current_user
+from app.utils.veda_context import sanitise_request_context
+from app.schemas.ui_response import UIResponse, VEDARequest, make_text_response
+from app.veda.state import build_initial_state
+from app.veda.graph import veda_graph
+from app.schemas.user_context import UserContext
 
 @app.post("/api/veda/chat", response_model=UIResponse)
 async def veda_chat(
     request: VEDARequest,
-    tenant_id: UUID = Depends(get_tenant_id)
+    tenant_id: UUID = Depends(get_tenant_id),
+    current_user: UserContext = Depends(get_current_user),
 ):
     """
-    VEDA chat endpoint. Accepts a natural language message and
-    returns a typed UIResponse for the frontend to render.
+    VEDA chat endpoint. Processes natural language, returns UIResponse.
 
-    Security: tenant_id from JWT always overrides client-supplied value.
-    Context: Active record context is passed automatically by the frontend.
-    Stub: Returns TEXT response until LangGraph is wired in Task 3.1.
+    Flow:
+    1. Sanitise context  — JWT tenant_id overwrites any client-supplied value
+    2. Build graph state — assemble initial AgentState
+    3. Invoke graph      — supervisor routes → agent executes → UIResponse set
+    4. Return response   — always a typed UIResponse, never plain text
     """
-    # SECURITY: Always sanitise context — JWT tenant_id overwrites client value
     safe_context = sanitise_request_context(request.context, tenant_id)
 
-    # STUB: Real LangGraph routing implemented in Task 3.1
-    # Returns context description so frontend and tests can verify
-    # context is flowing correctly before LangGraph is wired.
-    context_description = describe_context(safe_context)
-
-    return make_text_response(
-        message=(
-            f"VEDA received: '{request.message}'. "
-            f"Context: {context_description} "
-            f"LangGraph routing will be wired in Task 3.1."
-        ),
+    initial_state = build_initial_state(
+        message=request.message,
         context=safe_context,
-        hints=[
-            "Show all active employees",
-            "Run payroll for this month",
-            "Show pending leave approvals"
-        ]
+        user=current_user,
+        conversation_history=request.conversation_history,
+    )
+
+    try:
+        final_state = await veda_graph.ainvoke(initial_state)
+    except Exception as e:
+        return make_text_response(
+            message="I encountered an error processing your request. Please try again.",
+            context=safe_context,
+            hints=["Show all employees", "Help"],
+        )
+
+    if final_state.get("response"):
+        return final_state["response"]
+
+    # Fallback — should not be reached if supervisor is implemented correctly
+    return make_text_response(
+        message="I'm not sure how to help with that. Could you rephrase?",
+        context=safe_context,
+        hints=["Show all employees", "Help"],
     )
 
 @app.get("/api/me")

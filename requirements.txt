@@ -5,10 +5,11 @@ pydantic
 asyncpg
 alembic
 python-dotenv
-langgraph
-crewai
 pytest
 pytest-asyncio
 httpx
 psycopg2-binary
 python-jose[cryptography]
+langchain-anthropic>=0.1.0
+anthropic>=0.21.0
+langgraph>=0.0.40
