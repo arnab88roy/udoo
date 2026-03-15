@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Udoo — AI-Native ERP for Indian SMEs
 
-## Getting Started
+> **VEDA** (Virtual Enterprise Decision Assistant) — an AI-first, multi-tenant B2B SaaS ERP built for Indian small and medium enterprises.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What is Udoo?
+
+Udoo is a modular ERP platform where AI is the primary interface. Instead of navigating menus, users talk to VEDA — an AI agent that understands business context, enforces compliance, and orchestrates workflows across all modules.
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | FastAPI (async) + SQLAlchemy + Alembic |
+| Database | PostgreSQL via Supabase (with RLS) |
+| AI Layer | LangGraph + Claude (Anthropic) |
+| Frontend | Next.js + Tailwind CSS |
+| Auth | JWT + Supabase RLS tenant isolation |
+
+---
+
+## Modules
+
+| Module | Status |
+|---|---|
+| Core Masters (Company, Currency, Holiday) | ✅ Complete |
+| Org Masters (Branch, Department, Designation) | ✅ Complete |
+| Employee Master + Child Tables | ✅ Complete |
+| Leave Management | ✅ Complete |
+| Attendance Management | ✅ Complete |
+| Payroll (Salary Components, Slips, PF/ESI/TDS) | ✅ Complete |
+| RBAC + Org Scope | ✅ Complete |
+| Finance (GST, Invoicing, TDS, Recurring) | ✅ Complete |
+| VEDA AI Layer (LangGraph) | 🔄 In Progress |
+| Frontend (Dynamic UI) | 📋 Planned |
+
+---
+
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for full system design, module map, and API conventions.
+
+---
+
+## Project Structure
+
+```
+udoo/
+├── .agents/          # Agent skill definitions and workflows
+├── backend/
+│   └── app/
+│       ├── modules/  # HRMS, Finance, Payroll modules
+│       ├── utils/    # RBAC, org scope helpers
+│       ├── schemas/  # Pydantic schemas
+│       └── tests/    # Pytest test suites
+├── supabase/
+│   └── migrations/   # Alembic migration files
+├── tasks.md          # Master implementation plan
+└── ARCHITECTURE.md   # System architecture reference
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Design Principles
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Multi-tenant**: Every table has `tenant_id`. Supabase RLS enforces isolation at the database level.
+- **Indian compliance**: GST (CGST/SGST/IGST), TDS (194C/194J), PF, ESI built in.
+- **Docstatus state machine**: All transactional documents follow Draft → Submitted → Cancelled lifecycle.
+- **AI-first**: VEDA is the primary interface — not a chatbot bolted on top, but the core interaction layer.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Running Locally
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Backend
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+API docs available at `http://localhost:8000/docs`
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private — All rights reserved. © 2025 Udoo.
