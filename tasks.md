@@ -402,7 +402,7 @@ conversation. Everything else is chrome around the conversation.
 
 ```
 ┌────┬─────────────────────────────────────────────────────┐
-│    │                TOP BAR (48px)                        │
+│    │                TOP BAR (48px)                       │
 │ A  ├──────────────┬──────────────────┬───────────────────┤
 │ C  │              │                  │                   │
 │ T  │  LEFT PANEL  │  CENTER PANEL    │   RIGHT PANEL     │
@@ -416,7 +416,7 @@ conversation. Everything else is chrome around the conversation.
  48px
 ```
 
-- [ ] **Task 4.1:** IDE Shell + Component Registry
+- [x] **Task 4.1:** IDE Shell + Component Registry
     Build the 4-panel layout shell.
     Build the UIResponse component registry:
       TABLE type → `<InlineTable />` component
@@ -426,8 +426,8 @@ conversation. Everything else is chrome around the conversation.
       CONFIRM type → `<ConfirmCard />` component
       PROGRESS type → `<ProgressCard />` component
       TEXT type → `<TextMessage />` component
-    - [ ] *Gate:* Shell renders correctly
-    - [ ] *Gate:* Mock UIResponse objects render correct components
+    - [x] *Gate:* Shell renders correctly
+    - [x] *Gate:* Mock UIResponse objects render correct components
     *RBAC-aware shell requirements:*
     - Activity bar icons only show modules the user has access to
     - Finance icon hidden for hr_manager role
@@ -498,7 +498,7 @@ conversation. Everything else is chrome around the conversation.
 - [ ] **TD-8:** UIResponse schema not yet wired to LangGraph output.
 - [ ] **TD-9:** Vercel AI SDK streaming not yet implemented.
 - [ ] **TD-10:** VEDA diff attribution (purple tint) not yet implemented.
-- [ ] **TD-11:** Frontend shell uses wrong layout (sidebar VEDA vs IDE shell with 4 panels).
+- [x] **TD-11:** Frontend shell uses wrong layout (sidebar VEDA vs IDE shell with 4 panels).
 - [ ] **TD-12:** Permission checks not yet added to existing HRMS and Payroll
       endpoints (only new endpoints from Task 2.11+ have require_permission).
       Add to all existing endpoints before first paying customer.
