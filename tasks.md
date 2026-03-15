@@ -317,15 +317,15 @@ The AI layer is the product's core differentiator.
 Build one tool at a time, adding capabilities module by module.
 Do not build a full traditional ERP first.
 
-- [ ] **Task 3.1:** LangGraph Supervisor + First Tool (List Employees)
+- [x] **Task 3.1:** LangGraph Supervisor + First Tool (List Employees)
     - Supervisor routes messages to HR Agent
     - HR Agent has ONE tool: list_employees (calls GET /api/employees/)
     - Returns UIResponse of type TABLE
-    - [ ] *Gate:* "Show me all active employees" → returns TABLE UIResponse
-    - [ ] *Gate:* Table renders inline in chat (no page navigation)
-    - [ ] *Gate:* VEDA system prompt includes user role and scope description
-    - [ ] *Gate:* Owner asking "show all employees" returns all 22
-    - [ ] *Gate:* Manager asking "show all employees" returns only their team
+    - [x] *Gate:* "Show me all active employees" → returns TABLE UIResponse
+    - [x] *Gate:* Table renders inline in chat (no page navigation)
+    - [x] *Gate:* VEDA system prompt includes user role and scope description
+    - [x] *Gate:* Owner asking "show all employees" returns all 22
+    - [x] *Gate:* Manager asking "show all employees" returns only their team
 
 - [ ] **Task 3.2:** HR Agent — Core Tools
     Tools to add one at a time:
