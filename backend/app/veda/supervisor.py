@@ -60,12 +60,20 @@ For agent "hr", identify the tool:
 - "get_attendance_summary" — user wants a summary of attendance (e.g. "attendance last 7 days")
 - "get_my_permissions"     — user wants to know what they can do (e.g. "what are my permissions?")
 
+For agent "payroll", identify the tool:
+- "get_payroll_status"     — user wants to know the overview of payroll for a month (e.g. "payroll status", "did everyone get payslips?")
+- "run_payroll_bulk"       — user wants to generate salary slips for the month (e.g. "run payroll", "generate slips")
+- "get_salary_slip"        — user wants to see their own or someone's payslip (e.g. "my payslip", "show payslip for Jan")
+
 Extract any parameters mentioned:
 - For list_employees:          {{ "status_filter": "Active" }} (default Active, or "all" / "Inactive")
 - For get_employee:            {{ "name": "Dev Patel" }} or {{ "employee_id": "EMP-001" }}
 - For list_leave_applications: {{ "status": "Open" }} (default Open, or "Approved" / "Rejected" / "all")
 - For approve_leave:           {{ "leave_id": "uuid-here" }} if mentioned
 - For get_attendance_summary:  {{ "days": 7 }} (default 7, or as mentioned)
+- For get_payroll_status:      {{ "month": 3, "year": 2024 }} (extract numeric month/year)
+- For run_payroll_bulk: {{ "month": 3, "year": 2026, "working_days": 26 }} (extract numeric month/year if mentioned)
+- For get_salary_slip:         {{ "name": "Dev Patel", "month": 3, "year": 2024 }}
 
 Response format (strict JSON, nothing else):
 {{"agent": "hr", "tool": "list_employees", "params": {{"status_filter": "Active"}}, "confidence": 0.95}}
@@ -153,9 +161,9 @@ async def supervisor_node(state: AgentState) -> AgentState:
         )
         return {**state, "response": response}
 
-    # ── Block unimplemented agents (payroll, finance, setup) ───────────────
+    # ── Block unimplemented agents (finance, setup) ───────────────
     # Remove this block when the corresponding agent is implemented.
-    if agent in ("payroll", "finance", "setup"):
+    if agent in ("finance", "setup"):
         response = make_blocker_response(
             reason=(
                 f"The {agent} module is not yet available in VEDA. "

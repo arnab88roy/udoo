@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, END
 from app.veda.state import AgentState
 from app.veda.supervisor import supervisor_node
 from app.veda.agents.hr_agent import hr_agent_node
-# Phase 3.3: from app.veda.agents.payroll_agent import payroll_agent_node
+from app.veda.agents.payroll_agent import payroll_agent_node
 # Phase 3.4: from app.veda.agents.finance_agent import finance_agent_node
 
 
@@ -21,7 +21,7 @@ def build_veda_graph() -> StateGraph:
 
     graph.add_node("supervisor", supervisor_node)
     graph.add_node("hr_agent", hr_agent_node)
-    # Phase 3.3: graph.add_node("payroll_agent", payroll_agent_node)
+    graph.add_node("payroll_agent", payroll_agent_node)
     # Phase 3.4: graph.add_node("finance_agent", finance_agent_node)
 
     graph.set_entry_point("supervisor")
@@ -31,12 +31,13 @@ def build_veda_graph() -> StateGraph:
         route_to_agent,
         {
             "hr": "hr_agent",
+            "payroll": "payroll_agent",
             "end": END,
         }
     )
 
     graph.add_edge("hr_agent", END)
-    # Phase 3.3: graph.add_edge("payroll_agent", END)
+    graph.add_edge("payroll_agent", END)
     # Phase 3.4: graph.add_edge("finance_agent", END)
 
     return graph.compile()
@@ -60,6 +61,8 @@ def route_to_agent(state: AgentState) -> str:
     agent = state.get("current_agent")
     if agent == "hr":
         return "hr"
+    if agent == "payroll":
+        return "payroll"
 
     # payroll, finance, setup, None — not yet implemented
     # Supervisor is responsible for setting a BLOCKER response for these

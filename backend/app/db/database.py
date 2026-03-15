@@ -5,12 +5,14 @@ from dotenv import load_dotenv
 from contextvars import ContextVar
 from uuid import UUID
 from typing import Optional
+import logging
 
 current_user_id_ctx: ContextVar[Optional[UUID]] = ContextVar(
     'current_user_id', default=None
 )
 
-load_dotenv()
+logger = logging.getLogger(__name__)
+load_dotenv(override=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:

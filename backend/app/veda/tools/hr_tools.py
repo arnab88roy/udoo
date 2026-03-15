@@ -1,5 +1,6 @@
 from typing import Optional
 from uuid import UUID
+from collections import Counter
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,10 +14,15 @@ from app.schemas.ui_response import (
     make_table_response,
     make_blocker_response,
     make_text_response,
+    make_form_response,
+    make_approval_response,
+    FormField,
+    FormFieldType,
 )
 from app.utils.veda_context import context_for_module
 from app.utils.org_scope import get_visible_employee_ids
 from app.utils.permissions import check_permission, DEFAULT_PERMISSIONS
+from app.veda.tools.helpers import resolve_employee_by_name, fetch_display_names
 
 
 async def list_employees_tool(
@@ -27,19 +33,7 @@ async def list_employees_tool(
 ) -> UIResponse:
     """
     List employees visible to the current user.
-
-    Permission required: hrms.view
-    Org scope applied:
-        owner / hr_manager / auditor  → all employees in tenant
-        manager                       → direct + indirect reports only
-        employee                      → self only
-        finance_manager               → BLOCKER (no hrms access)
-
-    Returns:
-        TABLE UIResponse  — on success
-        BLOCKER UIResponse — if no permission or no visible employees
     """
-    # ── Step 1: Permission check ───────────────────────────────────────────
     if not check_permission(user, "hrms", "view"):
         return make_blocker_response(
             reason=f"Your role ({user.role}) does not have access to employee records.",
@@ -48,10 +42,6 @@ async def list_employees_tool(
             blocked_task="Listing employees",
         )
 
-    # ── Step 2: Org scope ──────────────────────────────────────────────────
-    # Returns None  → no filter, user can see everyone
-    # Returns []    → empty list, user can see no one (should not happen if perm check passed)
-    # Returns [ids] → filter to this list
     visible_ids = await get_visible_employee_ids(db, user, user.tenant_id)
 
     if visible_ids is not None and len(visible_ids) == 0:
@@ -62,39 +52,36 @@ async def list_employees_tool(
             blocked_task="Listing employees",
         )
 
-    # ── Step 3: Query with tenant isolation ───────────────────────────────
-    query = (
-        select(models.Employee)
-        .where(models.Employee.tenant_id == user.tenant_id)
-    )
-
+    query = select(models.Employee).where(models.Employee.tenant_id == user.tenant_id)
     if status_filter:
         query = query.where(models.Employee.status == status_filter)
-
     if visible_ids is not None:
         query = query.where(models.Employee.id.in_(visible_ids))
-
     query = query.order_by(models.Employee.employee_name)
 
-    # ── Step 4: Execute ────────────────────────────────────────────────────
     result = await db.execute(query)
     employees = result.scalars().all()
 
-    # ── Step 5: Build rows ────────────────────────────────────────────────
+    # Resolve names for display
+    names = await fetch_display_names(
+        db=db,
+        tenant_id=user.tenant_id,
+        designation_ids=[emp.designation_id for emp in employees],
+        department_ids=[emp.department_id for emp in employees],
+    )
+
     rows = []
     for emp in employees:
         rows.append({
             "id": str(emp.id),
-            "employee_id": emp.employee_number or "—",
+            "employee_number": emp.employee_number or "—",
             "employee_name": emp.employee_name or "—",
-            "designation_id": str(emp.designation_id) if emp.designation_id else "—",
-            "department_id": str(emp.department_id) if emp.department_id else "—",
+            "designation": names["designations"].get(str(emp.designation_id), "—"),
+            "department": names["departments"].get(str(emp.department_id), "—"),
             "status": emp.status or "Active",
         })
 
-    # ── Step 6: Build UIResponse ──────────────────────────────────────────
     response_context = context_for_module(user.tenant_id, "hrms")
-
     actions = []
     if check_permission(user, "hrms", "create"):
         actions.append(UIAction(
@@ -107,16 +94,15 @@ async def list_employees_tool(
             confirmation_required=False,
         ))
 
-    status_label = status_filter.lower() if status_filter else "all"
     return make_table_response(
-        message=f"Here are the {status_label} employees ({len(rows)} total):",
+        message=f"Here are the {status_filter.lower() if status_filter else 'all'} employees ({len(rows)} total):",
         context=response_context,
-        columns=["employee_id", "employee_name", "designation_id", "department_id", "status"],
+        columns=["employee_number", "employee_name", "designation", "department", "status"],
         column_labels={
-            "employee_id": "Employee ID",
+            "employee_number": "ID",
             "employee_name": "Name",
-            "designation_id": "Designation",
-            "department_id": "Department",
+            "designation": "Designation",
+            "department": "Department",
             "status": "Status",
         },
         rows=rows,
@@ -145,35 +131,36 @@ async def get_employee_tool(
             blocked_task="Viewing employee details",
         )
 
-    query = select(models.Employee).where(models.Employee.tenant_id == user.tenant_id)
+    emp = None
     if employee_id:
-        query = query.where(models.Employee.employee_number == employee_id)
+        query = select(models.Employee).where(
+            models.Employee.employee_number == employee_id,
+            models.Employee.tenant_id == user.tenant_id
+        )
+        result = await db.execute(query)
+        emp = result.scalars().first()
     elif name:
-        query = query.where(models.Employee.employee_name.ilike(f"%{name}%"))
-    else:
-        # Fallback to context if available
-        if context.open_record_type == "employee" and context.open_record_id:
-            query = query.where(models.Employee.id == context.open_record_id)
-        else:
-            return make_blocker_response(
-                reason="Please provide an employee name or ID.",
-                resolution_options=[],
-                context=context,
-                blocked_task="Viewing employee details",
-            )
-
-    result = await db.execute(query)
-    emp = result.scalars().first()
+        emp, disambiguation = await resolve_employee_by_name(
+            db, name, user.tenant_id, user, context
+        )
+        if disambiguation:
+            return disambiguation
+    elif context.open_record_type == "employee" and context.open_record_id:
+        query = select(models.Employee).where(
+            models.Employee.id == context.open_record_id,
+            models.Employee.tenant_id == user.tenant_id
+        )
+        result = await db.execute(query)
+        emp = result.scalars().first()
 
     if not emp:
         return make_blocker_response(
-            reason=f"No employee found matching '{employee_id or name}'.",
+            reason=f"No employee found matching '{employee_id or name or 'context'}'.",
             resolution_options=[],
             context=context,
             blocked_task="Viewing employee details",
         )
 
-    # Permission check for cross-scope viewing
     visible_ids = await get_visible_employee_ids(db, user, user.tenant_id)
     if visible_ids is not None and emp.id not in visible_ids:
         return make_blocker_response(
@@ -183,8 +170,6 @@ async def get_employee_tool(
             blocked_task="Viewing employee details",
         )
 
-    # Build FORM fields (simplified for VEDA demo)
-    from app.schemas.ui_response import make_form_response, FormField, FormFieldType
     fields = [
         FormField(name="employee_number", label="Employee ID", field_type=FormFieldType.READONLY),
         FormField(name="employee_name", label="Full Name", field_type=FormFieldType.TEXT, required=True),
@@ -221,7 +206,7 @@ async def list_leave_applications_tool(
     status: Optional[str] = "Open",
 ) -> UIResponse:
     """
-    List leave applications. Applies org scope (managers see their team).
+    List leave applications. Applies org scope.
     """
     if not check_permission(user, "hrms", "view"):
         return make_blocker_response(
@@ -231,7 +216,6 @@ async def list_leave_applications_tool(
             blocked_task="Listing leave applications",
         )
 
-    # Org scope filtering
     visible_emp_ids = await get_visible_employee_ids(db, user, user.tenant_id)
     
     query = (
@@ -248,12 +232,26 @@ async def list_leave_applications_tool(
     result = await db.execute(query)
     leaves = result.scalars().all()
 
+    if not leaves:
+        return make_text_response(
+            message=f"No {status.lower()} leave approvals found — your team is all clear.",
+            context=context,
+            hints=["Show attendance", "Show all employees"],
+        )
+
+    names = await fetch_display_names(
+        db=db,
+        tenant_id=user.tenant_id,
+        employee_ids=[leave.employee_id for leave in leaves],
+        leave_type_ids=[leave.leave_type_id for leave in leaves],
+    )
+
     rows = []
     for leave in leaves:
         rows.append({
             "id": str(leave.id),
-            "employee_id": str(leave.employee_id), # Ideally fetch employee_name with join
-            "leave_type": str(leave.leave_type_id),
+            "employee_name": names["employees"].get(str(leave.employee_id), "—"),
+            "leave_type": names["leave_types"].get(str(leave.leave_type_id), "—"),
             "from_date": leave.from_date.isoformat(),
             "to_date": leave.to_date.isoformat(),
             "days": float(leave.total_leave_days or 0),
@@ -263,8 +261,15 @@ async def list_leave_applications_tool(
     return make_table_response(
         message=f"I found {len(rows)} {status.lower()} leave applications:",
         context=context,
-        columns=["from_date", "to_date", "days", "status"],
-        column_labels={"from_date": "From", "to_date": "To", "days": "Days", "status": "Status"},
+        columns=["employee_name", "leave_type", "from_date", "to_date", "days", "status"],
+        column_labels={
+            "employee_name": "Employee",
+            "leave_type": "Leave Type",
+            "from_date": "From",
+            "to_date": "To",
+            "days": "Days",
+            "status": "Status"
+        },
         rows=rows,
         total=len(rows),
         record_type="leave_application",
@@ -330,15 +335,27 @@ async def approve_leave_tool(
             blocked_task="Approving leave",
         )
 
-    from app.schemas.ui_response import make_approval_response
+    names = await fetch_display_names(
+        db=db,
+        tenant_id=user.tenant_id,
+        employee_ids=[leave.employee_id],
+        leave_type_ids=[leave.leave_type_id],
+    )
+
+    employee_name = names["employees"].get(str(leave.employee_id), "Unknown Employee")
+    leave_type_name = names["leave_types"].get(str(leave.leave_type_id), "—")
+
     return make_approval_response(
-        message=f"Please confirm the approval for leave request {lid}:",
+        message=f"Please confirm the approval for {employee_name}'s leave request:",
         record_type="leave_application",
         record_id=leave.id,
         summary={
-            "Dates": f"{leave.from_date} to {leave.to_date}",
-            "Total Days": str(leave.total_leave_days),
-            "Status": leave.status,
+            "Employee": employee_name,
+            "Leave Type": leave_type_name,
+            "From": str(leave.from_date),
+            "To": str(leave.to_date),
+            "Days": str(leave.total_leave_days),
+            "Reason": leave.description or "No reason provided",
         },
         approve_endpoint=f"/api/leave-applications/{leave.id}/approve",
         reject_endpoint=f"/api/leave-applications/{leave.id}/cancel",
@@ -379,28 +396,25 @@ async def get_attendance_summary_tool(
     result = await db.execute(query)
     records = result.scalars().all()
 
-    # Simple aggregation
-    summary = {} # date -> {status -> count}
-    for rec in records:
-        d_str = rec.attendance_date.isoformat()
-        if d_str not in summary:
-            summary[d_str] = {"Present": 0, "Absent": 0, "Leave": 0}
-        s = rec.status if rec.status in summary[d_str] else "Present"
-        summary[d_str][s] += 1
+    # Dynamic counting by status
+    status_counts = Counter(rec.status for rec in records)
+    rows = [
+        {"status": status, "count": count}
+        for status, count in sorted(status_counts.items())
+    ]
 
-    rows = []
-    for d, counts in sorted(summary.items(), reverse=True):
-        rows.append({
-            "date": d,
-            "present": counts["Present"],
-            "absent": counts["Absent"],
-            "leave": counts["Leave"],
-        })
+    if not rows:
+        return make_text_response(
+            message=f"No attendance records found for the last {days} days.",
+            context=context,
+            hints=["Show all employees", "Show pending leaves"],
+        )
 
     return make_table_response(
-        message=f"Attendance summary for the last {days} days:",
+        message=f"Attendance summary for the last {days} days ({len(records)} records):",
         context=context,
-        columns=["date", "present", "absent", "leave"],
+        columns=["status", "count"],
+        column_labels={"status": "Status", "count": "Count"},
         rows=rows,
         total=len(rows),
     )
