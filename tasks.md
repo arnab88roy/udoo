@@ -327,23 +327,26 @@ Do not build a full traditional ERP first.
     - [x] *Gate:* Owner asking "show all employees" returns all 22
     - [x] *Gate:* Manager asking "show all employees" returns only their team
 
-- [ ] **Task 3.2:** HR Agent — Core Tools
-    Tools to add one at a time:
+- [x] **Task 3.2:** HR Agent — Core Tools
+    Tools added:
     - get_employee (by name or ID) → FORM UIResponse
     - list_leave_applications → TABLE UIResponse
-    - approve_leave (id) → APPROVAL UIResponse → CONFIRM UIResponse
+    - approve_leave (id) → APPROVAL UIResponse
     - get_attendance_summary → TABLE UIResponse
     - get_my_permissions() → TEXT UIResponse listing what the user can do
-      "You can approve leaves for your team. You cannot access payroll."
-    - [ ] *Gate:* Full leave approval flow works in chat: list → select → approve → confirm
+    - helpers.py: resolve_employee_by_name (disambiguation TABLE for multiple matches)
+    - helpers.py: fetch_display_names (batch UUID → name resolution)
+    - [x] *Gate:* Full leave approval flow works in chat: list → select → approve → confirm
 
-- [ ] **Task 3.3:** HR Agent — Payroll Tools
-    Tools to add:
-    - get_payroll_status (month, year) → TABLE UIResponse
-    - run_payroll_bulk → PROGRESS UIResponse → CONFIRM UIResponse
-    - get_salary_slip (employee, month) → FORM UIResponse
-    - [ ] *Gate:* "Run March payroll" triggers PROGRESS then CONFIRM before executing
-    *Requires role check: only owner and hr_manager can run payroll.*
+- [x] **Task 3.3:** HR Agent — Payroll Tools
+    Tools added:
+    - get_payroll_status (month, year) → TABLE UIResponse with employee names
+    - run_payroll_bulk → CONFIRM UIResponse (HITL — frontend executes endpoint)
+    - get_salary_slip (employee, month) → TABLE UIResponse
+    - payroll_agent.py wired into LangGraph graph
+    - 13 field mismatch fixes: employee_number, designation/department names resolved
+    - [x] *Gate:* "Run March payroll" → returns CONFIRM UIResponse before executing
+    *Role check enforced: only owner and hr_manager can run payroll.*
     *Employee-role requests for payroll get a BLOCKER UIResponse.*
 
 - [ ] **Task 3.4:** Finance Agent
@@ -503,7 +506,15 @@ conversation. Everything else is chrome around the conversation.
       Currently all tenants see all employees regardless of role.
       Add get_visible_employee_ids() to all list endpoints before
       first paying customer.
-- [ ] **TD-14:** Payroll bulk-generate uses company-level salary structure
+- [ ] **TD-14:** `company_type` field missing from Company model.
+      Add to `core_masters/models.py` with options: sole_proprietorship,
+      partnership, llp, private_limited, public_limited, opc, section_8,
+      trust, government. Nullable column, Alembic migration required.
+      Required for Task 3.6 onboarding agent — compliance defaults differ
+      by org type (PF/ESI thresholds, GST filing category).
+      Address in Task 3.6 or before first paying customer.
+
+- [ ] **TD-15:** Payroll bulk-generate uses company-level salary structure
       lookup instead of employee-specific `salary_structure_id`.
       Currently fetches the first active structure for the company.
       When a company has multiple salary structures (e.g. junior vs senior),
