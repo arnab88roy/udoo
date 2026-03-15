@@ -56,12 +56,16 @@ For agent "hr", identify the tool:
 - "list_employees"         — user wants a list of employees (e.g. "show employees", "who is active")
 - "get_employee"           — user wants details on one specific employee (by name or ID)
 - "list_leave_applications"— user wants to see leave requests
-- "approve_leave"          — user wants to approve a leave request
+- "approve_leave"          — user wants to approve a leave request (or "open approval card")
+- "get_attendance_summary" — user wants a summary of attendance (e.g. "attendance last 7 days")
+- "get_my_permissions"     — user wants to know what they can do (e.g. "what are my permissions?")
 
 Extract any parameters mentioned:
-- For list_employees: {{ "status_filter": "Active" }} (default Active, or "Inactive" if mentioned)
-- For get_employee:   {{ "name": "Dev Patel" }} or {{ "employee_id": "EMP-001" }}
-- For approve_leave:  {{ "leave_id": "uuid-here" }} if mentioned
+- For list_employees:          {{ "status_filter": "Active" }} (default Active, or "all" / "Inactive")
+- For get_employee:            {{ "name": "Dev Patel" }} or {{ "employee_id": "EMP-001" }}
+- For list_leave_applications: {{ "status": "Open" }} (default Open, or "Approved" / "Rejected" / "all")
+- For approve_leave:           {{ "leave_id": "uuid-here" }} if mentioned
+- For get_attendance_summary:  {{ "days": 7 }} (default 7, or as mentioned)
 
 Response format (strict JSON, nothing else):
 {{"agent": "hr", "tool": "list_employees", "params": {{"status_filter": "Active"}}, "confidence": 0.95}}

@@ -1,16 +1,24 @@
 from app.db.database import AsyncSessionLocal
 from app.veda.state import AgentState
-from app.veda.tools.hr_tools import list_employees_tool
+from app.veda.tools.hr_tools import (
+    list_employees_tool,
+    get_employee_tool,
+    list_leave_applications_tool,
+    approve_leave_tool,
+    get_attendance_summary_tool,
+    get_my_permissions_tool,
+)
 from app.schemas.ui_response import make_blocker_response
 
 
 # Tool registry — add new tools here as Phase 3.2 progresses
 HR_TOOLS = {
     "list_employees": list_employees_tool,
-    # Phase 3.2:
-    # "get_employee": get_employee_tool,
-    # "list_leave_applications": list_leave_applications_tool,
-    # "approve_leave": approve_leave_tool,
+    "get_employee": get_employee_tool,
+    "list_leave_applications": list_leave_applications_tool,
+    "approve_leave": approve_leave_tool,
+    "get_attendance_summary": get_attendance_summary_tool,
+    "get_my_permissions": get_my_permissions_tool,
 }
 
 
