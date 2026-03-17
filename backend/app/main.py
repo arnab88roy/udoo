@@ -9,6 +9,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI-Native ERP Meta-Engine", version="0.1.0")
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 from fastapi.openapi.utils import get_openapi
 
 def custom_openapi():
@@ -47,8 +57,8 @@ async def jwt_authentication_middleware(request: Request, call_next):
     Placeholder JWT Authentication Middleware.
     Extracts tenant context and validates authorization header.
     """
-    # 1. Skip auth for public paths (e.g., OpenAPI docs)
-    if request.url.path in ["/docs", "/openapi.json", "/"]:
+    # 1. Skip auth for public paths and OPTIONS requests
+    if request.method == "OPTIONS" or request.url.path in ["/docs", "/openapi.json", "/", "/api/health"]:
         return await call_next(request)
 
     # 2. Extract JWT token (Placeholder logic)

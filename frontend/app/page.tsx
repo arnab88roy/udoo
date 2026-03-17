@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
-import { Users, DollarSign, Settings, BarChart2, Home as HomeIcon, FileText } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Users, DollarSign, Settings, BarChart2, Home as HomeIcon, Send } from 'lucide-react';
 import { VEDAMessageBubble } from '@/components/veda/VEDAMessage';
-import { VEDAMessage, UserRole, UIAction } from '@/types/ui-response';
+import { VEDAMessage, UserRole, UIAction, UIContext } from '@/types/ui-response';
+import { sendVEDAMessage, buildNullContext } from '@/lib/veda-client';
 
-// ── Mock user (replace with JWT context in Task 4.2) ──────────────────────
+// ── Mock user (replace with JWT context in Task 4.3) ──────────────────────
 const MOCK_USER = {
   role: 'owner' as UserRole,
   full_name: 'Arnab Roy',
@@ -29,112 +30,119 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   settings: <Settings size={18} />,
 };
 
-// ── Mock VEDA conversation ────────────────────────────────────────────────
-const MOCK_MESSAGES: VEDAMessage[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content: "Hello Arnab! I'm VEDA, your AI business assistant. What would you like to do today?",
-    response: {
-      type: 'text',
-      message: "Hello! I'm VEDA.",
-      payload: {
-        content: "Hello Arnab! I'm VEDA, your AI business assistant.",
-        hints: ["Show all employees", "Run payroll", "Pending approvals"],
-      },
-      actions: [],
-      context: { open_record_type: null, open_record_id: null, open_module: null, tenant_id: 'demo' },
-    },
-    timestamp: new Date(),
-  },
-  {
-    id: '2',
-    role: 'user',
-    content: 'Show me all active employees',
-    timestamp: new Date(),
-  },
-  {
-    id: '3',
-    role: 'assistant',
-    content: 'Here are the active employees (3 total):',
-    response: {
-      type: 'table',
-      message: 'Here are the active employees (3 total):',
-      payload: {
-        columns: ['employee_number', 'employee_name', 'designation', 'department', 'status'],
-        column_labels: {
-          employee_number: 'ID',
-          employee_name: 'Name',
-          designation: 'Designation',
-          department: 'Department',
-          status: 'Status',
-        },
-        rows: [
-          { id: 'uuid-1', employee_number: 'EMP-001', employee_name: 'Priya Sharma', designation: 'HR Manager', department: 'Human Resources', status: 'Active' },
-          { id: 'uuid-2', employee_number: 'EMP-002', employee_name: 'Dev Patel', designation: 'Machine Operator', department: 'Production', status: 'Active' },
-          { id: 'uuid-3', employee_number: 'EMP-003', employee_name: 'Kiran Patel', designation: 'Finance Manager', department: 'Finance', status: 'Active' },
-        ],
-        total: 3,
-        record_type: 'employee',
-        row_id_field: 'id',
-      },
-      actions: [
-        { action_id: 'add_employee', label: 'Add Employee', style: 'primary', endpoint: '/api/employees/', method: 'POST', payload: {}, confirmation_required: false },
-      ],
-      context: { open_record_type: null, open_record_id: null, open_module: 'hrms', tenant_id: 'demo' },
-    },
-    timestamp: new Date(),
-  },
-  {
-    id: '4',
-    role: 'user',
-    content: 'Approve Dev Patel\'s leave',
-    timestamp: new Date(),
-  },
-  {
-    id: '5',
-    role: 'assistant',
-    content: "Please confirm the approval for Dev Patel's leave request:",
-    response: {
-      type: 'approval',
-      message: "Please confirm the approval for Dev Patel's leave request:",
-      payload: {
-        record_type: 'leave_application',
-        record_id: 'uuid-leave-1',
-        summary: {
-          Employee: 'Dev Patel',
-          'Leave Type': 'Casual Leave',
-          From: '2026-03-18',
-          To: '2026-03-20',
-          Days: '3',
-          Reason: 'Family function',
-        },
-        action_options: ['Approve', 'Reject'],
-      },
-      actions: [
-        { action_id: 'approve', label: 'Approve', style: 'primary', endpoint: '/api/leave-applications/uuid-leave-1/approve', method: 'POST', payload: {}, confirmation_required: false },
-        { action_id: 'reject', label: 'Reject', style: 'danger', endpoint: '/api/leave-applications/uuid-leave-1/cancel', method: 'POST', payload: {}, confirmation_required: false },
-      ],
-      context: { open_record_type: 'leave_application', open_record_id: 'uuid-leave-1', open_module: 'hrms', tenant_id: 'demo' },
-    },
-    timestamp: new Date(),
-  },
-];
+let messageIdCounter = 0;
+function nextId() { return String(++messageIdCounter); }
 
 export default function Home() {
   const [activeModule, setActiveModule] = useState('hrms');
-  const [messages] = useState<VEDAMessage[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<VEDAMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeContext, setActiveContext] = useState<UIContext>(buildNullContext());
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const visibleModules = MODULE_ACCESS[MOCK_USER.role];
 
-  const handleAction = (action: UIAction) => {
-    console.log('Action triggered:', action);
-    // Task 4.2: wire to real API calls
-  };
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
-  const handleHintClick = (hint: string) => {
+  // Build conversation history from current messages (last 10)
+  function buildHistory() {
+    return messages
+      .slice(-10)
+      .map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }));
+  }
+
+  async function handleSend() {
+    const text = inputValue.trim();
+    if (!text || isLoading) return;
+
+    setInputValue('');
+
+    // Add user message immediately
+    const userMsg: VEDAMessage = {
+      id: nextId(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setIsLoading(true);
+
+    try {
+      const vedaResponse = await sendVEDAMessage({
+        message: text,
+        context: activeContext,
+        conversation_history: buildHistory(),
+      });
+
+      // Update active context from response
+      if (vedaResponse.context) {
+        setActiveContext(vedaResponse.context);
+      }
+
+      const assistantMsg: VEDAMessage = {
+        id: nextId(),
+        role: 'assistant',
+        content: vedaResponse.message,
+        response: vedaResponse,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+
+    } catch (err) {
+      // Show error as a BLOCKER card
+      const errorMsg: VEDAMessage = {
+        id: nextId(),
+        role: 'assistant',
+        content: 'I encountered an error processing your request.',
+        response: {
+          type: 'blocker',
+          message: 'I encountered an error processing your request.',
+          payload: {
+            reason: err instanceof Error ? err.message : 'Unknown error. Is the backend running?',
+            resolution_options: [],
+            blocked_task: text,
+          },
+          actions: [],
+          context: activeContext,
+        },
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
+
+  function handleHintClick(hint: string) {
     setInputValue(hint);
-  };
+  }
+
+  function handleAction(action: UIAction) {
+    // Task 4.4: wire to real API calls
+    console.log('Action triggered:', action);
+  }
+
+  function handleRowClick(recordType: string, recordId: string) {
+    // Task 4.3: update active context
+    setActiveContext(prev => ({
+      ...prev,
+      open_record_type: recordType,
+      open_record_id: recordId,
+    }));
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[var(--bg-base)] overflow-hidden">
@@ -150,6 +158,11 @@ export default function Home() {
           <span className="text-[var(--text-secondary)] text-xs">{MOCK_USER.company_name}</span>
         </div>
         <div className="flex items-center gap-3">
+          {activeContext.open_record_type && (
+            <span className="text-[var(--text-muted)] text-xs">
+              {activeContext.open_record_type} open
+            </span>
+          )}
           <span className="text-[var(--text-muted)] text-xs">{MOCK_USER.full_name}</span>
           <div className="px-2 py-0.5 rounded bg-[var(--veda-purple-bg)] text-[var(--veda-purple)] text-xs border border-[var(--accent-primary)]">
             {MOCK_USER.role}
@@ -201,16 +214,56 @@ export default function Home() {
 
         {/* CENTER PANEL — VEDA CONVERSATION */}
         <div className="flex flex-col flex-1 overflow-hidden">
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4">
+            {messages.length === 0 && !isLoading && (
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <div className="w-10 h-10 rounded bg-[var(--accent-primary)] flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">V</span>
+                </div>
+                <p className="text-[var(--text-secondary)] text-sm">
+                  VEDA is ready. Ask me anything.
+                </p>
+                <div className="flex flex-wrap gap-2 justify-center mt-2">
+                  {["Show all employees", "Run payroll", "Pending approvals"].map(hint => (
+                    <button
+                      key={hint}
+                      onClick={() => handleHintClick(hint)}
+                      className="px-3 py-1.5 rounded border border-[var(--border-default)] text-[var(--text-secondary)] text-xs hover:border-[var(--border-active)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      {hint}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {messages.map(msg => (
               <VEDAMessageBubble
                 key={msg.id}
                 msg={msg}
                 onAction={handleAction}
+                onRowClick={handleRowClick}
                 onHintClick={handleHintClick}
               />
             ))}
+
+            {/* Typing indicator */}
+            {isLoading && (
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 rounded bg-[var(--accent-primary)] flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-xs font-bold">V</span>
+                </div>
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
@@ -222,12 +275,21 @@ export default function Home() {
                 type="text"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
-                placeholder="Ask VEDA anything..."
-                className="flex-1 bg-transparent text-[var(--text-primary)] text-xs outline-none placeholder:text-[var(--text-muted)]"
+                onKeyDown={handleKeyDown}
+                placeholder={isLoading ? 'VEDA is thinking...' : 'Ask VEDA anything...'}
+                disabled={isLoading}
+                className="flex-1 bg-transparent text-[var(--text-primary)] text-xs outline-none placeholder:text-[var(--text-muted)] disabled:opacity-50"
               />
-              <kbd className="text-[var(--text-muted)] text-xs">⏎</kbd>
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !inputValue.trim()}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
+              >
+                <Send size={14} />
+              </button>
             </div>
           </div>
+
         </div>
 
         {/* RIGHT PANEL */}
@@ -238,10 +300,40 @@ export default function Home() {
           <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
             <span className="text-[var(--text-muted)] text-xs uppercase tracking-wider">Inspector</span>
           </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            <p className="text-[var(--text-muted)] text-xs">
-              Record inspector — Task 4.3
-            </p>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {activeContext.open_record_type ? (
+              <div className="space-y-2">
+                <p className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-wider">
+                  Active Record
+                </p>
+                <div className="space-y-1">
+                  <div className="flex gap-2">
+                    <span className="text-[var(--text-muted)] text-xs w-16">Type</span>
+                    <span className="text-[var(--text-primary)] text-xs">
+                      {activeContext.open_record_type}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-[var(--text-muted)] text-xs w-16">ID</span>
+                    <span className="text-[var(--text-primary)] text-xs font-mono truncate">
+                      {activeContext.open_record_id?.slice(0, 8)}...
+                    </span>
+                  </div>
+                  {activeContext.open_module && (
+                    <div className="flex gap-2">
+                      <span className="text-[var(--text-muted)] text-xs w-16">Module</span>
+                      <span className="text-[var(--text-primary)] text-xs">
+                        {activeContext.open_module}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[var(--text-muted)] text-xs">
+                No record open. Click a table row to open a record.
+              </p>
+            )}
           </div>
         </div>
 

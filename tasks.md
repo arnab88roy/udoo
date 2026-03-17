@@ -434,11 +434,11 @@ conversation. Everything else is chrome around the conversation.
     - HRMS icon hidden for finance_manager role
     - Settings icon only visible to owner and hr_manager
 
-- [ ] **Task 4.2:** VEDA Chat Engine
+- [x] **Task 4.2:** VEDA Chat Engine
     Connect center panel to POST /api/veda/chat
     Stream responses using Vercel AI SDK useChat hook
     Render UIResponse components inline as messages arrive
-    - [ ] *Gate:* Real API call → UIResponse → correct component renders
+    - [x] *Gate:* Real API call → UIResponse → correct component renders
 
 - [ ] **Task 4.3:** Active Record Context Wiring
     Open record type + ID passed automatically on every message
