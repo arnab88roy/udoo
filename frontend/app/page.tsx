@@ -39,6 +39,9 @@ export default function Home() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeContext, setActiveContext] = useState<UIContext>(buildNullContext());
+  const [recentRecords, setRecentRecords] = useState<
+    { type: string; id: string; label: string; module: string }[]
+  >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const visibleModules = MODULE_ACCESS[MOCK_USER.role];
 
@@ -136,12 +139,20 @@ export default function Home() {
   }
 
   function handleRowClick(recordType: string, recordId: string) {
-    // Task 4.3: update active context
-    setActiveContext(prev => ({
-      ...prev,
+    const newContext = {
+      ...activeContext,
       open_record_type: recordType,
       open_record_id: recordId,
-    }));
+    };
+    setActiveContext(newContext);
+
+    // Track in recent records (keep last 5, no duplicates)
+    setRecentRecords(prev => {
+      const label = `${recordType} ${recordId.slice(0, 6)}...`;
+      const entry = { type: recordType, id: recordId, label, module: activeModule };
+      const filtered = prev.filter(r => r.id !== recordId);
+      return [entry, ...filtered].slice(0, 5);
+    });
   }
 
   return (
@@ -181,7 +192,10 @@ export default function Home() {
           {visibleModules.map(mod => (
             <button
               key={mod}
-              onClick={() => setActiveModule(mod)}
+              onClick={() => {
+                setActiveModule(mod);
+                setActiveContext(prev => ({ ...prev, open_module: mod }));
+              }}
               title={mod.toUpperCase()}
               className={`
                 w-9 h-9 flex items-center justify-center rounded transition-colors
@@ -205,10 +219,39 @@ export default function Home() {
               {activeModule.toUpperCase()}
             </span>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            <p className="text-[var(--text-muted)] text-xs px-2 py-1">
-              Record navigator — Task 4.3
-            </p>
+          <div className="flex-1 overflow-y-auto">
+            {recentRecords.length === 0 ? (
+              <p className="text-[var(--text-muted)] text-xs px-3 py-2">
+                No records opened yet.
+              </p>
+            ) : (
+              <div>
+                <p className="text-[var(--text-muted)] text-xs px-3 py-2 uppercase tracking-wider">
+                  Recent
+                </p>
+                {recentRecords.map(rec => (
+                  <button
+                    key={rec.id}
+                    onClick={() => setActiveContext(prev => ({
+                      ...prev,
+                      open_record_type: rec.type,
+                      open_record_id: rec.id,
+                      open_module: rec.module,
+                    }))}
+                    className={`
+                      w-full text-left px-3 py-1.5 text-xs transition-colors
+                      hover:bg-[var(--bg-panel-hover)]
+                      ${activeContext.open_record_id === rec.id
+                        ? 'text-[var(--text-primary)] border-l-2 border-[var(--accent-primary)]'
+                        : 'text-[var(--text-secondary)]'}
+                    `}
+                  >
+                    <span className="text-[var(--text-muted)] mr-1">{rec.type}</span>
+                    {rec.id.slice(0, 8)}...
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
