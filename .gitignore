@@ -52,3 +52,4 @@ __pycache__/
 .mypy_cache/
 .vscode/
 test_conn.py
+*.log
