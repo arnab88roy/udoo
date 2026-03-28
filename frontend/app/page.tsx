@@ -22,6 +22,15 @@ const MODULE_ACCESS: Record<UserRole, string[]> = {
   auditor:         ['home', 'hrms', 'payroll', 'finance'],
 };
 
+const ROLE_HINTS: Record<UserRole, string[]> = {
+  owner:           ["Show all employees", "Run payroll", "Pending approvals"],
+  hr_manager:      ["Approve leaves", "Run payroll", "View attendance"],
+  finance_manager: ["Outstanding invoices", "Create quote", "Payment received"],
+  manager:         ["Approve team leaves", "View team attendance", "My team"],
+  employee:        ["Apply for leave", "My payslips", "My attendance"],
+  auditor:         ["Show all employees", "View payroll", "Show invoices"],
+};
+
 const MODULE_ICONS: Record<string, React.ReactNode> = {
   home:     <HomeIcon size={18} />,
   hrms:     <Users size={18} />,
@@ -354,7 +363,7 @@ export default function Home() {
                   VEDA is ready. Ask me anything.
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center mt-2">
-                  {["Show all employees", "Run payroll", "Pending approvals"].map(hint => (
+                  {ROLE_HINTS[MOCK_USER.role].map(hint => (
                     <button
                       key={hint}
                       onClick={() => handleHintClick(hint)}

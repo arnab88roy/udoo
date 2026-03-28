@@ -21,17 +21,27 @@ export function InlineForm({ payload, actions, onAction }: Props) {
         {payload.fields.map(field => (
           <div
             key={field.name}
-            className={`${field.veda_filled ? 'border-l-2 border-[var(--veda-purple)] pl-2' : ''}`}
+            className={`${
+              field.veda_filled
+                ? 'border-l-2 border-[var(--veda-purple)] pl-2'
+                : ''
+            }`}
           >
-            <label className="block text-[var(--text-secondary)] text-xs mb-1">
-              {field.label}
-              {field.required && <span className="text-[var(--accent-danger)] ml-1">*</span>}
+            <label className="block text-[var(--text-secondary)] text-xs mb-1 flex items-center gap-1">
+              <span>{field.label}</span>
+              {field.required && (
+                <span className="text-[var(--accent-danger)]">*</span>
+              )}
               {field.veda_filled && (
-                <span className="ml-2 text-[var(--veda-purple)]">VEDA</span>
+                <span className="text-[var(--veda-purple)] text-xs ml-1">VEDA</span>
+              )}
+              {field.veda_filled && field.veda_confidence !== null &&
+               field.veda_confidence !== undefined && field.veda_confidence < 0.8 && (
+                <span className="text-[var(--accent-warning)] text-xs">⚠ Review</span>
               )}
             </label>
             {field.readonly ? (
-              <p className="text-[var(--text-muted)] text-xs">
+              <p className="text-[var(--text-muted)] text-xs py-1">
                 {String(payload.values[field.name] ?? '—')}
               </p>
             ) : (
@@ -39,7 +49,14 @@ export function InlineForm({ payload, actions, onAction }: Props) {
                 type="text"
                 defaultValue={String(payload.values[field.name] ?? '')}
                 placeholder={field.placeholder ?? ''}
-                className="w-full bg-[var(--bg-input)] border border-[var(--border-default)] rounded px-2 py-1 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-active)]"
+                className={`
+                  w-full border border-[var(--border-default)] rounded px-2 py-1
+                  text-xs text-[var(--text-primary)] focus:outline-none
+                  focus:border-[var(--border-active)] transition-colors
+                  ${field.veda_filled
+                    ? 'bg-[var(--veda-purple-bg)]'
+                    : 'bg-[var(--bg-input)]'}
+                `}
               />
             )}
           </div>
