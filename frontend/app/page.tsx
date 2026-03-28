@@ -14,28 +14,28 @@ const MOCK_USER = {
 
 // ── RBAC: which modules each role can see ─────────────────────────────────
 const MODULE_ACCESS: Record<UserRole, string[]> = {
-  owner:           ['home', 'hrms', 'payroll', 'finance', 'settings'],
-  hr_manager:      ['home', 'hrms', 'payroll'],
+  owner: ['home', 'hrms', 'payroll', 'finance', 'settings'],
+  hr_manager: ['home', 'hrms', 'payroll'],
   finance_manager: ['home', 'finance'],
-  manager:         ['home', 'hrms'],
-  employee:        ['home', 'hrms'],
-  auditor:         ['home', 'hrms', 'payroll', 'finance'],
+  manager: ['home', 'hrms'],
+  employee: ['home', 'hrms'],
+  auditor: ['home', 'hrms', 'payroll', 'finance'],
 };
 
 const ROLE_HINTS: Record<UserRole, string[]> = {
-  owner:           ["Show all employees", "Run payroll", "Pending approvals"],
-  hr_manager:      ["Approve leaves", "Run payroll", "View attendance"],
+  owner: ["Show all employees", "Run payroll", "Pending approvals"],
+  hr_manager: ["Approve leaves", "Run payroll", "View attendance"],
   finance_manager: ["Outstanding invoices", "Create quote", "Payment received"],
-  manager:         ["Approve team leaves", "View team attendance", "My team"],
-  employee:        ["Apply for leave", "My payslips", "My attendance"],
-  auditor:         ["Show all employees", "View payroll", "Show invoices"],
+  manager: ["Approve team leaves", "View team attendance", "My team"],
+  employee: ["Apply for leave", "My payslips", "My attendance"],
+  auditor: ["Show all employees", "View payroll", "Show invoices"],
 };
 
 const MODULE_ICONS: Record<string, React.ReactNode> = {
-  home:     <HomeIcon size={18} />,
-  hrms:     <Users size={18} />,
-  payroll:  <BarChart2 size={18} />,
-  finance:  <DollarSign size={18} />,
+  home: <HomeIcon size={18} />,
+  hrms: <Users size={18} />,
+  payroll: <BarChart2 size={18} />,
+  finance: <DollarSign size={18} />,
   settings: <Settings size={18} />,
 };
 
