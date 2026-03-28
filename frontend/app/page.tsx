@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Users, DollarSign, Settings, BarChart2, Home as HomeIcon, Send } from 'lucide-react';
 import { VEDAMessageBubble } from '@/components/veda/VEDAMessage';
 import { VEDAMessage, UserRole, UIAction, UIContext } from '@/types/ui-response';
-import { sendVEDAMessage, buildNullContext } from '@/lib/veda-client';
+import { sendVEDAMessage, buildNullContext, executeAction } from '@/lib/veda-client';
 
 // ── Mock user (replace with JWT context in Task 4.3) ──────────────────────
 const MOCK_USER = {
@@ -133,9 +133,94 @@ export default function Home() {
     setInputValue(hint);
   }
 
-  function handleAction(action: UIAction) {
-    // Task 4.4: wire to real API calls
-    console.log('Action triggered:', action);
+  async function handleAction(action: UIAction) {
+    // Skip actions with no endpoint (e.g. dismiss/cancel)
+    if (!action.endpoint) return;
+
+    try {
+      const result = await executeAction(
+        action.endpoint,
+        action.method,
+        action.payload,
+      );
+
+      if (result.ok) {
+        // Action succeeded — send follow-up to VEDA
+        const followUpText = `Action completed: ${action.label}`;
+        const userMsg: VEDAMessage = {
+          id: nextId(),
+          role: 'user',
+          content: followUpText,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, userMsg]);
+        setIsLoading(true);
+
+        try {
+          const vedaResponse = await sendVEDAMessage({
+            message: followUpText,
+            context: activeContext,
+            conversation_history: buildHistory(),
+          });
+
+          if (vedaResponse.context) {
+            setActiveContext(vedaResponse.context);
+          }
+
+          const assistantMsg: VEDAMessage = {
+            id: nextId(),
+            role: 'assistant',
+            content: vedaResponse.message,
+            response: vedaResponse,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, assistantMsg]);
+        } finally {
+          setIsLoading(false);
+        }
+
+      } else {
+        // Action failed — show error in chat
+        const errorMsg: VEDAMessage = {
+          id: nextId(),
+          role: 'assistant',
+          content: `Action failed: ${action.label}`,
+          response: {
+            type: 'blocker',
+            message: `Action failed: ${action.label}`,
+            payload: {
+              reason: `The ${action.label} action failed with status ${result.status}. Please try again.`,
+              resolution_options: [],
+              blocked_task: action.label,
+            },
+            actions: [],
+            context: activeContext,
+          },
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      }
+
+    } catch (err) {
+      const errorMsg: VEDAMessage = {
+        id: nextId(),
+        role: 'assistant',
+        content: 'Action failed due to a network error.',
+        response: {
+          type: 'blocker',
+          message: 'Action failed due to a network error.',
+          payload: {
+            reason: err instanceof Error ? err.message : 'Network error',
+            resolution_options: [],
+            blocked_task: action.label,
+          },
+          actions: [],
+          context: activeContext,
+        },
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    }
   }
 
   function handleRowClick(recordType: string, recordId: string) {

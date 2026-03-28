@@ -38,3 +38,27 @@ export function buildNullContext(): UIContext {
     tenant_id: TENANT_ID,
   };
 }
+
+export async function executeAction(
+  endpoint: string,
+  method: string,
+  payload: Record<string, unknown>
+): Promise<{ ok: boolean; status: number; data: unknown }> {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${TOKEN}`,
+    },
+    body: method !== 'GET' ? JSON.stringify(payload) : undefined,
+  });
+
+  let data: unknown = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  return { ok: response.ok, status: response.status, data };
+}
