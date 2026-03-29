@@ -77,12 +77,12 @@ System automatically falls back to Classic when AI is unavailable.
 - [x] **Task 1.12:** Create `.agents/skills/database-management/SKILL.md`
 - [x] **Task 1.13:** Create `.agents/skills/rbac-and-scope/SKILL.md`
 - [x] **Task 1.14:** Create `.agents/skills/finance-module/SKILL.md`
-- [ ] **Task 1.15:** Update `ARCHITECTURE.md` to reflect current state.
+- [x] **Task 1.15:** Update `ARCHITECTURE.md` to reflect current state.
     - Update module status: Phase 3 VEDA layer complete, Phase 4 Mode 1 complete
     - Add three-mode architecture diagram and description
     - Add VEDA Assist panel pattern
     - Add Employee-User link pattern
-    - [ ] *Gate:* ARCHITECTURE.md module status matches actual codebase
+    - [x] *Gate:* ARCHITECTURE.md module status matches actual codebase
 
 ---
 
@@ -109,6 +109,19 @@ System automatically falls back to Classic when AI is unavailable.
     (Client, Quote, Invoice, Payment — GST, state machines, RBAC)
 
 ### Backend Gaps — Must fix before first paying customer
+
+**Option C Execution Sequence (agreed):**
+Backend endpoints → Classic forms as testing harness → VEDA write tools against verified endpoints
+
+```
+2.12 → 2.13 → 4.9 → 4.10 → 4.11 → 3.4 → 4.12 → 4.13 → 4.14 → 2.14
+PATCH  Auth   Shell  Setup  Emp    Write  Leave  Attend  Payroll  PDF
++link  endpts +nav   forms  forms  tools  forms  forms   forms
+```
+
+Rationale: Classic forms verify each endpoint works correctly. VEDA write
+tools are built against proven endpoints — any failure is isolated to the
+VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
 
 - [ ] **Task 2.12:** Employee PATCH endpoint + User-Employee link
     *Currently POST /api/employees/ exists but PATCH /api/employees/{id} is missing.*
@@ -170,7 +183,9 @@ System automatically falls back to Classic when AI is unavailable.
 - [ ] **Task 3.4:** VEDA HR Write Tools — Employee Lifecycle
     *Makes VEDA transactional, not just a dashboard.*
     *All tools return FORM UIResponse pre-filled. HITL wiring executes API call.*
-    *Requires Task 2.12 (PATCH endpoint) to be complete first.*
+    *Requires Task 2.12 (PATCH endpoint) AND Task 4.12 (employee forms) to be complete first.*
+    *Classic forms are the testing harness — if the form works, the endpoint is proven.*
+    *Build write tools only after the corresponding Classic form is verified end-to-end.*
 
     Tools:
 
@@ -302,7 +317,7 @@ System automatically falls back to Classic when AI is unavailable.
 
 ### Design System Foundation (prerequisite for all Classic + VEDA Assist pages)
 
-- [ ] **Task 4.7a:** Design System Migration
+- [x] **Task 4.7a:** Design System Migration
     *Must be completed before Task 4.7 and all subsequent frontend tasks.*
     *Establishes the visual foundation that every Classic and VEDA Assist page builds on.*
     *VEDA Auto dark shell is NOT touched.*
@@ -337,25 +352,25 @@ System automatically falls back to Classic when AI is unavailable.
     - `formatINR()` — Indian number formatting
     - `formatDate()` — Indian date formatting
 
-    - [ ] *Gate:* `components.json` shows style: new-york, baseColor: blue
-    - [ ] *Gate:* At least 25 component files in `frontend/components/ui/`
-    - [ ] *Gate:* `@tanstack/react-table` present in package.json
-    - [ ] *Gate:* `globals.css` contains `--veda-fill`, `--primary`, `--sidebar-primary`
-    - [ ] *Gate:* `frontend/lib/design-system.ts` exists with 100+ lines
+    - [x] *Gate:* `components.json` shows style: new-york, baseColor: blue
+    - [x] *Gate:* At least 25 component files in `frontend/components/ui/`
+    - [x] *Gate:* `@tanstack/react-table` present in package.json
+    - [x] *Gate:* `globals.css` contains `--veda-fill`, `--primary`, `--sidebar-primary`
+    - [x] *Gate:* `frontend/lib/design-system.ts` exists with 100+ lines
 
 ### Mode 2 — VEDA Assist
 
-- [ ] **Task 4.7:** Mode Switcher + Shell Routing
+- [x] **Task 4.7:** Mode Switcher + Shell Routing
     Top bar: VEDA Auto | VEDA Assist | Classic
     - VEDA Auto: 4-panel IDE shell
     - VEDA Assist: left sidebar + main content + VEDA co-pilot right panel
     - Classic: left sidebar + main content, no VEDA panel
     Mode stored in localStorage. Persists across page refreshes.
-    - [ ] *Gate:* Switching modes changes layout without page reload
-    - [ ] *Gate:* Mode persists after browser refresh
-    - [ ] *Gate:* RBAC enforced in all three modes identically
+    - [x] *Gate:* Switching modes changes layout without page reload
+    - [x] *Gate:* Mode persists after browser refresh
+    - [x] *Gate:* RBAC enforced in all three modes identically
 
-- [ ] **Task 4.8:** VEDA Assist Panel Component
+- [x] **Task 4.8:** VEDA Assist Panel Component
     *Right-side co-pilot attached to every form page.*
     *Calls POST /api/veda/chat with form context on each interaction.*
 
@@ -367,9 +382,9 @@ System automatically falls back to Classic when AI is unavailable.
     - Inline Q&A: user asks questions without leaving the form
     - VEDA responses in panel — never interrupt the form
 
-    - [ ] *Gate:* Employee form in VEDA Assist → panel shows context greeting
-    - [ ] *Gate:* Basic salary < 50% CTC → VEDA flags before save
-    - [ ] *Gate:* "What documents does a new employee need?" → VEDA answers in panel
+    - [x] *Gate:* Employee form in VEDA Assist → panel shows context greeting
+    - [x] *Gate:* Basic salary < 50% CTC → VEDA flags before save
+    - [x] *Gate:* "What documents does a new employee need?" → VEDA answers in panel
 
 ### Mode 3 — Classic (+ shared form pages for VEDA Assist)
 
@@ -414,6 +429,8 @@ System automatically falls back to Classic when AI is unavailable.
 
 - [ ] **Task 4.12:** Employee Module Pages
     *Requires Task 4.10 (master data) and Task 2.12 (PATCH endpoint).*
+    *Prerequisite for Task 3.4 (VEDA write tools) — verify all employee*
+    *CRUD endpoints work through the form before building VEDA tools.*
 
     Pages:
     - Employee list — search, filter by status/dept/designation, paginated
