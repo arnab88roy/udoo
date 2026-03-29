@@ -214,9 +214,9 @@
 * { box-sizing: border-box; }
 
 body {
-  background-color: canvas;
-  color: canvastext;
-  font-family: 'Inter', system-ui, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   overflow: hidden;
