@@ -6,8 +6,14 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.db.database import get_db
-from app.dependencies import get_tenant_id
+from app.dependencies import get_tenant_id, get_current_user
+from app.schemas.user_context import UserContext
 from app.modules.hr_masters import models, schemas
+from app.modules.core_masters.models import User
+import secrets
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 employee_router = APIRouter(prefix="/employees", tags=["Employees"])
 
@@ -110,3 +116,61 @@ async def update_employee(id: UUID, data: schemas.EmployeeUpdate, db: AsyncSessi
     await db.commit()
     await db.refresh(employee)
     return employee
+
+@employee_router.post("/{id}/create-account", response_model=schemas.CreateAccountResponse)
+async def create_employee_account(
+    id: UUID, 
+    data: schemas.CreateAccountRequest,
+    db: AsyncSession = Depends(get_db), 
+    tenant_id: UUID = Depends(get_tenant_id),
+    current_user: UserContext = Depends(get_current_user)
+):
+    # 1. Require owner or hr_manager role
+    if current_user.role not in ("owner", "hr_manager"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    # 2. Find employee
+    stmt = select(models.Employee).where(
+        models.Employee.id == id, 
+        models.Employee.tenant_id == tenant_id
+    )
+    result = await db.execute(stmt)
+    employee = result.scalar_one_or_none()
+    
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    # 3. Check if already linked
+    if employee.user_id:
+        raise HTTPException(status_code=400, detail="Employee already has a user account")
+
+    # 4. Generate & Hash Password
+    temp_password = secrets.token_urlsafe(12)
+    hashed_password = pwd_context.hash(temp_password)
+
+    # 5. Create User
+    new_user = User(
+        email=data.email,
+        full_name=employee.employee_name,
+        hashed_password=hashed_password,
+        role=data.role,
+        company_id=employee.company_id,
+        employee_id=employee.id,
+        tenant_id=tenant_id,
+        is_active=True
+    )
+    db.add(new_user)
+    
+    # 6. Link Employee to User (flush to get new_user.id if needed, but we can set it and commit)
+    await db.flush() 
+    employee.user_id = new_user.id
+    
+    # 7. Atomically Commit
+    await db.commit()
+
+    return {
+        "user_id": new_user.id,
+        "email": new_user.email,
+        "role": new_user.role,
+        "temporary_password": temp_password
+    }

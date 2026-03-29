@@ -396,3 +396,19 @@ class AttendanceRequestResponse(AttendanceRequestBase):
     
     employee: Optional[EmployeeSummary] = None
     model_config = ConfigDict(from_attributes=True)
+
+class CreateAccountRequest(BaseModel):
+    email: str = Field(..., description="Login email for the new user account")
+    role: str = Field(
+        "employee",
+        description="One of: owner, hr_manager, finance_manager, manager, employee, auditor"
+    )
+
+class CreateAccountResponse(BaseModel):
+    user_id: UUID
+    email: str
+    role: str
+    temporary_password: str = Field(
+        ...,
+        description="One-time temporary password. Show to HR, not stored in plain text."
+    )
