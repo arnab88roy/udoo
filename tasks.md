@@ -134,8 +134,8 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
       Creates a User record linked to the employee, sends invite email
       (or returns a temporary password for now)
     - User.employee_id and Employee.user_id FK both set atomically
-    - [ ] *Gate:* PATCH /api/employees/{id} updates name and department correctly
-    - [ ] *Gate:* create-account sets up User linked to employee, JWT works for that user
+    - [x] *Gate:* PATCH /api/employees/{id} updates name and department correctly
+    - [x] *Gate:* create-account sets up User linked to employee, JWT works for that user
 
 - [ ] **Task 2.13:** User Management Endpoints
     *Owners need to manage users — invite, deactivate, reset password, change role.*
@@ -295,7 +295,67 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
 - [x] **Task 4.5:** VEDA Diff Attribution — purple tint on VEDA-filled fields
 - [x] **Task 4.6:** Role-Aware VEDA Hint Chips
 
-### Authentication Pages (required before all other Phase 4 work)
+- [ ] **Task 4.1b:** Shell Redesign — VEDA Right Panel + ERP Center + Explorer
+    *The current 4-panel IDE layout has VEDA chat in the center. That is wrong.*
+    *The correct architecture mirrors Antigravity IDE: center is ERP content,*
+    *right panel is the AI agent (VEDA). Auto/Assist is a panel-level toggle.*
+
+    **Layout:**
+    ```
+    ┌──────┬──────────────┬──────────────────────────────────────┬───────────────────┐
+    │      │              │  Employees │ Dev Patel │ INV-004 │ + │  VEDA  [Auto ▾]   │
+    │  A   │   EXPLORER   ├────────────┴──────────┴─────────┴────┤                   │
+    │  C   │   (module    │                                      │  Chat messages    │
+    │  T   │    tree)     │      ERP CONTENT                     │  Cards inline     │
+    │  I   │              │                                      │  Action results   │
+    │  V   │              │  Default: Welcome / onboarding       │                   │
+    │  I   │              │  Or: DataTable list page              │                   │
+    │  T   │              │  Or: Record detail form               │                   │
+    │  Y   │              │                                      │  [Ask VEDA...]    │
+    └──────┴──────────────┴──────────────────────────────────────┴───────────────────┘
+     48px    260px                    flex: 1                        340px
+    ```
+
+    **Key architectural decisions:**
+    - Center panel = ERP content ONLY (list pages, record forms, welcome screen)
+    - Right panel = VEDA AI agent (chat + cards + actions + context indicator)
+    - Auto / Assist = dropdown toggle in VEDA panel header, NOT a top-bar mode
+    - Classic = VEDA panel collapsed/hidden, ERP works independently
+    - No VEDA tab in the tab bar — tab bar is ERP content tabs only
+    - No ModeSwitcher in top bar — replaced by dropdown in VEDA panel
+    - Welcome screen shows when no ERP tabs are open (quick links, help, docs)
+
+    **Auto vs Assist:**
+    | Mode | VEDA can do |
+    |---|---|
+    | Auto | Pre-fill forms, execute HITL actions, open records, run payroll |
+    | Assist | Answer questions, show data, explain rules. NO action buttons. View-only. |
+
+    **Sub-tasks:**
+    - 4.1b-A: Component architecture + shell layout + explorer + tab system +
+              VEDA panel with Auto/Assist dropdown + welcome screen
+    - 4.1b-B: Resize handles + toggle animation + localStorage persistence +
+              tab overflow scroll + keyboard shortcuts
+
+    **What does NOT change:**
+    - All card components (InlineTable, InlineForm, ApprovalCard, etc.)
+    - All VEDA backend and AI layer
+    - UIResponse schema
+    - RBAC module visibility rules
+
+    - [ ] *Gate 1:* Explorer panel renders module tree (HRMS, Payroll, Finance, Settings)
+    - [ ] *Gate 2:* Explorer panel drag-resize works (180px–400px), persists after refresh
+    - [ ] *Gate 3:* Explorer panel toggle collapses/expands with animation, persists
+    - [ ] *Gate 4:* Clicking "Employees" in explorer opens Employees list tab in center
+    - [ ] *Gate 5:* Clicking a record row opens record in new tab in center
+    - [ ] *Gate 6:* Active tab record context auto-passed to VEDA panel
+    - [ ] *Gate 7:* VEDA panel shows chat with Auto/Assist dropdown toggle
+    - [ ] *Gate 8:* Auto mode: action buttons render on VEDA cards
+    - [ ] *Gate 9:* Assist mode: NO action buttons, view-only
+    - [ ] *Gate 10:* VEDA panel drag-resize works (280px–500px), persists
+    - [ ] *Gate 11:* VEDA panel toggle collapses/expands (= Classic mode)
+    - [ ] *Gate 12:* Tab overflow scrolls horizontally with 5+ tabs open
+    - [ ] *Gate 13:* Welcome screen renders when no tabs open (quick links, help section)
 
 - [ ] **Task 4.0:** Authentication Pages
     *Blocks everything else — without login, no real user can access the product.*
