@@ -28,6 +28,19 @@ Both can touch it. No handoff ceremony. No mode switching.
   visual attribution (purple tint). Human can accept all, reject
   all, or edit field by field.
 
+**Three interaction modes (non-negotiable architecture):**
+
+| Mode | Name | Who drives | AI role | When |
+|---|---|---|---|---|
+| 1 | **VEDA Auto** | VEDA | Primary — VEDA initiates, pre-fills, executes after HITL confirmation | Default for all daily operations |
+| 2 | **VEDA Assist** | User (forms) | Co-pilot — pre-fills fields, flags compliance issues, answers inline questions | New users, complex records, setup |
+| 3 | **Classic** | User (forms) | None — zero AI dependency | AI outage, credits exhausted, user preference |
+
+All three modes write to the same Postgres tables via the same FastAPI endpoints.
+No data silos between modes. A record created in Classic appears in VEDA Auto.
+Mode is switchable per-session via the top bar. Default is VEDA Auto.
+System automatically falls back to Classic when AI is unavailable.
+
 ---
 
 **INSTRUCTIONS FOR THE AI AGENT:**
@@ -43,482 +56,622 @@ Both can touch it. No handoff ceremony. No mode switching.
 - [x] **Task 0.1:** Initialize Python virtual environment and `requirements.txt`.
 - [x] **Task 0.2:** Setup `backend/app/main.py` with FastAPI, JWT middleware, and Supabase RLS dependency injection.
 - [ ] **Task 0.3:** Configure PostgreSQL MCP Server (Supabase).
-    - [ ] *Gate:* Start a new conversation and ask the agent to list all tables via MCP. Does it successfully return the live database tables without hallucinating?
+    - [ ] *Gate:* Start a new conversation and ask the agent to list all tables via MCP.
 
 ---
 
-## Phase 1: Agent Skills & Architecture Docs (The "How")
-*These files are loaded by the agent at the start of every session. Complete before any further backend work.*
-
+## Phase 1: Agent Skills & Architecture Docs
 - [x] **Task 1.1:** Create `ARCHITECTURE.md` at project root.
-    - Must include: product vision, tech stack, core rules, module status tracker, RLS strategy, Alembic as sole migration source of truth.
-    - [x] *Gate:* Does the file exist and cover all sections above?
-
 - [x] **Task 1.2:** Create `.agents/skills/fastapi-crud-generator/SKILL.md`
-    - Must include: CoreMasterBase inheritance rule, tenant_id filter on every query, selectinload pattern, 201 for POST, 404 for not found, kebab-case router prefixes, state machine endpoint naming convention.
-    - [x] *Gate:* Run `ls -la .agents/skills/*/SKILL.md`. Does the file exist?
-
 - [x] **Task 1.3:** Create `.agents/skills/erp-state-machine/SKILL.md`
-    - Must include: docstatus 0/1/2 definitions, required endpoints per transactional table (submit/cancel/approve/reject), master data defaults to docstatus=1, never hard delete transactional records.
-    - [x] *Gate:* File exists with correct content.
-
 - [x] **Task 1.4:** Create `.agents/skills/VEDA-api-contract/SKILL.md`
-    - Must include: every Pydantic field must have a Field(description="..."), endpoint descriptions must document valid state transitions, response schemas must include all fields the AI agent needs for decision-making.
-    - [x] *Gate:* File exists with correct content.
-
 - [x] **Task 1.5:** Create `.agents/skills/indian-compliance/SKILL.md`
-    - Must include: GST rules (CGST/SGST for intra-state, IGST for inter-state), payroll compliance fields (PF 12%, ESI 3.25%, PT by state), invoice mandatory fields per GST law, TDS applicability rules.
-    - [x] *Gate:* File exists with correct content.
-
 - [ ] **Task 1.6:** Archive old Supabase SQL drafts.
-    - Move `supabase/20260223000000` through `20260223000005` files to `reference/supabase_drafts/`.
-    - Add a `reference/supabase_drafts/README.md` stating: "These are early AI-generated drafts. Alembic is the sole migration source of truth."
-    - [ ] *Gate:* No `20260223*.sql` files remain in the active `supabase/` migrations folder.
-
+    - Move `supabase/20260223*` files to `reference/supabase_drafts/`
+    - [ ] *Gate:* No `20260223*.sql` files in active `supabase/` migrations folder
 - [x] **Task 1.7:** Create `.agents/skills/veda-ui-response/SKILL.md`
-    - UIResponse typed schema, all 7 response types, payload shapes
-    - [x] *Gate:* File exists with complete type definitions
-
 - [x] **Task 1.8:** Create `.agents/skills/veda-context/SKILL.md`
-    - Active record context pattern, how context flows through LangGraph
-    - [x] *Gate:* File exists with context schema defined
-
 - [x] **Task 1.9:** Create `.agents/skills/frontend-card-system/SKILL.md`
-    - Card component registry, how UIResponse type maps to React component
-    - [x] *Gate:* File exists with component registry pattern
-
 - [x] **Task 1.10:** Create `.agents/skills/rls-security/SKILL.md`
-    - RLS enforcement rules, Alembic migration pattern, FastAPI session
-      injection, defense in depth with both app-level and DB-level filtering.
-    - [x] *Gate:* File exists at `.agents/skills/rls-security/SKILL.md`
-
 - [x] **Task 1.11:** Create `.agents/skills/erp-relationships/SKILL.md`
-    - Cross-module FK rules (UUID only, no SQLAlchemy relationship),
-      child table rules (relational not JSONB), internal API communication.
-    - [x] *Gate:* File exists at `.agents/skills/erp-relationships/SKILL.md`
-
 - [x] **Task 1.12:** Create `.agents/skills/database-management/SKILL.md`
-    - Session management, environment-aware pooling, NullPool for tests,
-      async teardown hooks, error handling and rollback patterns.
-    - [x] *Gate:* File exists at `.agents/skills/database-management/SKILL.md`
-
 - [x] **Task 1.13:** Create `.agents/skills/rbac-and-scope/SKILL.md`
-    - 6 roles and permission matrix, require_permission() pattern,
-      org scope pattern, self-service own record check,
-      VEDA permission check before suggesting actions.
-    - [x] *Gate:* File exists at `.agents/skills/rbac-and-scope/SKILL.md`
-
 - [x] **Task 1.14:** Create `.agents/skills/finance-module/SKILL.md`
-    - Finance module rules, router map, state machines, VEDA integration patterns, Indian compliance rules specific to invoicing.
-    - [x] *Gate:* File exists at `.agents/skills/finance-module/SKILL.md`
+- [ ] **Task 1.15:** Update `ARCHITECTURE.md` to reflect current state.
+    - Update module status: Phase 3 VEDA layer complete, Phase 4 Mode 1 complete
+    - Add three-mode architecture diagram and description
+    - Add VEDA Assist panel pattern
+    - Add Employee-User link pattern
+    - [ ] *Gate:* ARCHITECTURE.md module status matches actual codebase
 
 ---
 
-## Phase 2: Backend MVP — HRMS Vertical Slice
-*Execute using `.agents/workflows/build-from-spec.md`. Read SKILL.md files before each task.*
+## Phase 2: Backend MVP ✅ Complete
+
+- [x] **Task 2.1–2.3:** Core Masters, Org Masters, Dependent Masters
+    (Company, Currency, Holiday, Branch, Department, Designation,
+    Employment Type, Gender, Salutation)
+- [x] **Task 2.4:** Employee Master & Child Tables
+    (Education, Internal/External Work History)
+- [x] **Task 2.5a:** Leave Management (LeaveType, LeaveApplication)
+- [x] **Task 2.5b:** Attendance Module
+    (EmployeeCheckin, Attendance, AttendanceRequest — full state machines)
+- [x] **Task 2.6:** Fix LeaveApplication — add POST /{id}/cancel
+- [x] **Task 2.7:** Fix `dependencies.py` — real JWT decode
+- [x] **Task 2.8:** Split `hr_masters/router.py` into domain files
+- [x] **Task 2.9:** Payroll Module
+    (SalaryComponent, SalaryStructure, SalarySlip, PF/ESI/PT/TDS,
+    bulk-generate, submit, cancel)
+- [x] **Task 2.9b:** UIResponse Pydantic Schema (7 types, all factory functions)
+- [x] **Task 2.9c:** Active Record Context System (veda_context.py)
+- [x] **Task 2.10:** User Authentication, RBAC & Org Scope (6 roles, permissions matrix)
+- [x] **Task 2.11:** Finance Module
+    (Client, Quote, Invoice, Payment — GST, state machines, RBAC)
+
+### Backend Gaps — Must fix before first paying customer
+
+- [ ] **Task 2.12:** Employee PATCH endpoint + User-Employee link
+    *Currently POST /api/employees/ exists but PATCH /api/employees/{id} is missing.*
+    *Also: when an employee is created, there is no corresponding User account.*
+    *Without a User account, the employee cannot log in.*
+
+    Changes required:
+    - Add `PATCH /api/employees/{id}` endpoint — partial update, tenant-scoped
+    - Add `POST /api/employees/{id}/create-account` endpoint:
+      Creates a User record linked to the employee, sends invite email
+      (or returns a temporary password for now)
+    - User.employee_id and Employee.user_id FK both set atomically
+    - [ ] *Gate:* PATCH /api/employees/{id} updates name and department correctly
+    - [ ] *Gate:* create-account sets up User linked to employee, JWT works for that user
+
+- [ ] **Task 2.13:** User Management Endpoints
+    *Owners need to manage users — invite, deactivate, reset password, change role.*
+
+    Endpoints required:
+    - `GET /api/users/` — list all users in tenant (owner only)
+    - `POST /api/users/invite` — create user + send invite (owner only)
+    - `PATCH /api/users/{id}/role` — change role (owner only)
+    - `POST /api/users/{id}/deactivate` — revoke access (owner only)
+    - `POST /api/auth/login` — email + password → JWT
+    - `POST /api/auth/refresh` — refresh token → new JWT
+    - `POST /api/auth/change-password` — authenticated user changes own password
+    - `POST /api/auth/reset-password` — owner resets any user's password
+    - [ ] *Gate:* Owner invites HR manager, HR manager logs in with credentials
+    - [ ] *Gate:* Owner deactivates user, subsequent JWT calls return 401
+
+- [ ] **Task 2.14:** PDF Generation Service
+    *Required for payslip download (Task 4.14) and offer letters (Phase 5).*
+
+    - Add WeasyPrint or ReportLab to requirements.txt
+    - Create `backend/app/utils/pdf_generator.py`
+    - `POST /api/salary-slips/{id}/pdf` → returns PDF file
+    - Template: company logo, employee details, earnings/deductions breakdown,
+      PF/ESI/PT/TDS clearly separated, employer contributions shown
+    - [ ] *Gate:* Salary slip PDF downloads with correct Indian compliance breakdown
+    - [ ] *Gate:* PDF includes company name, employee name, month, net pay
+
+---
+
+## Phase 3: VEDA AI Layer
 
 ### ✅ Completed
-- [x] **Task 2.1–2.3:** Core Masters, Org Masters, Dependent Masters (Company, Gender, Salutation, Branch, Designation, Employment Type, Department, Holiday List).
-- [x] **Task 2.4:** Employee Master & Child Tables (Education, Internal/External Work History).
-    - Validation: `pytest backend/app/tests/test_employee.py` passes.
-    - Validation: `GET /api/employees` returns `tenant_id` and nested child tables.
-- [x] **Task 2.5a:** Leave Management (LeaveType, LeaveApplication).
-    - Validation: docstatus transitions Draft→Submitted→Approved verified in Swagger UI.
-    - Validation: Tenant isolation confirmed.
-- [x] **Task 2.5b:** Attendance Module.
-    *Three models required:*
-    - [x] `EmployeeCheckin` → `hr_employee_checkins` (raw log, no docstatus)
-    - [x] `Attendance` → `hr_attendance` (docstatus, UNIQUE on employee_id + attendance_date)
-    - [x] `AttendanceRequest` → `hr_attendance_requests` (docstatus, full state machine)
 
-    *Routers required:*
-    - [x] `/api/employee-checkins` — CRUD only
-    - [x] `/api/attendance` — CRUD + `/submit` + `/cancel`
-    - [x] `/api/attendance-requests` — CRUD + `/submit` + `/approve` + `/reject` + `/cancel`
-
-- [x] **Task 2.6:** Fix LeaveApplication — add missing `POST /{id}/cancel` endpoint (docstatus 1→2).
-- [x] **Task 2.7:** Fix `dependencies.py` — implement real JWT decode for tenant_id extraction.
-- [x] **Task 2.8:** Split `hr_masters/router.py` into domain files.
-    - `routers/employees.py`, `routers/leave.py`, `routers/attendance.py`
-- [x] **Task 2.9:** Basic Payroll Module.
-    - Models: `SalaryComponent`, `SalaryStructure`, `SalarySlip`, `SalarySlipEarning`, `SalarySlipDeduction`
-    - Indian compliance: PF 12%, ESI 3.25%/0.75%, PT state-wise, TDS monthly
-    - `PayrollCalculator` — pure logic class, no DB calls
-    - State machine: Draft → Submitted → Cancelled
-    - Endpoints: `POST /salary-slips/bulk-generate`, `/submit`, `/cancel`
-
-### Immediate Backend Tasks (Before Any Frontend Work)
-
-- [x] **Task 2.9b:** Define UIResponse Pydantic Schema
-    *File:* `backend/app/schemas/ui_response.py`
-
-    *Schemas created:*
-    - `UIResponseType` Enum: TABLE, FORM, APPROVAL, BLOCKER, CONFIRM, PROGRESS, TEXT
-    - `UIContext`: open_record_type, open_record_id, open_module, tenant_id
-    - `UIAction`: action_id, label, style, endpoint, method, payload,
-      confirmation_required, sets_context
-    - `FormField` + `FormFieldType`: text, textarea, number, date, select,
-      fk_picker, toggle, file, readonly — with veda_filled and veda_confidence
-    - `ProgressStep` + `ProgressStepStatus`
-    - `TablePayload`: columns, rows, total, record_type, row_id_field
-    - `FormPayload`: record_type, record_id, fields, values, submit_endpoint
-    - `ApprovalPayload`: record_type, record_id, summary, action_options
-    - `BlockerPayload`: reason, resolution_options, blocked_task
-    - `ConfirmPayload`: summary, warning, is_irreversible
-    - `ProgressPayload`: steps, current_step, percent, task_id
-    - `TextPayload`: content, hints
-    - `VEDARequest`: message, context, conversation_history (max 10)
-    - `UIResponse` (root): type, message, payload, actions, context,
-      veda_confidence, audit_note
-    - Factory functions: make_text_response, make_table_response,
-      make_approval_response, make_progress_response, make_form_response,
-      make_blocker_response, make_confirm_response
-
-    - [x] *Gate:* `python -c "from app.schemas.ui_response import UIResponse; print('OK')"` succeeds
-    - [x] *Gate:* JSON schema export covers all 7 response types
-    - [x] *Gate:* All 7 factory functions tested and operational
-    - [x] *Gate:* `POST /api/veda/chat` stub returns valid UIResponse JSON
-
-- [x] **Task 2.9c:** Implement Active Record Context System
-    *File:* `backend/app/utils/veda_context.py`
-
-    *Functions created:*
-    - `build_context(tenant_id, ...)` — general purpose context builder
-    - `null_context(tenant_id)` — for background tasks and home dashboard
-    - `context_for_module(tenant_id, module)` — module-scoped, no record
-    - `context_for_record(tenant_id, type, id, module)` — specific record
-    - `sanitise_request_context(ctx, jwt_tenant)` — JWT always overwrites
-      client-supplied tenant_id. Call at top of every VEDA endpoint.
-    - `is_record_context_active(ctx)` — bool check
-    - `context_matches_type(ctx, type)` — LangGraph guard
-    - `describe_context(ctx)` — human-readable string for LangGraph prompts
-
-    *Security guarantee:* Client cannot spoof tenant_id through context body.
-    JWT tenant_id always overwrites client-supplied value.
-
-    *Tests:* 9 unit tests in `backend/app/tests/test_veda_context.py`
-
-    *Updated:* `backend/app/main.py` `/api/veda/chat` endpoint uses
-    `sanitise_request_context()` and returns `describe_context()` in stub.
-
-    *Updated:* `.agents/skills/veda-context/SKILL.md` — factory function
-    reference table and LangGraph agent pattern added.
-
-    - [x] *Gate:* `POST /api/veda/chat` returns valid UIResponse JSON
-    - [x] *Gate:* Context fields are present in the response even for TEXT type
-    - [x] *Gate:* Record context flows through: employee record open →
-      response message contains employee ID and hrms module
-    - [x] *Gate:* Null context flows through: home dashboard →
-      response message contains "No record is currently open"
-    - [x] *Gate:* Tenant spoofing blocked: client-supplied tenant_id
-      overwritten by JWT value — 9 tests passed
-
-- [x] **Task 2.10:** User Authentication, RBAC & Org Scope Foundation
-    *This task must be completed before Finance (2.11) and LangGraph (3.1).*
-    *Both depend on knowing WHO the user is and WHAT they can access.*
-
-    *Files created:*
-    - `backend/app/schemas/user_context.py` — Typed UserContext dataclass
-      with role properties: is_owner, is_hr_manager, is_finance_manager,
-      is_manager, is_employee, is_auditor, can_see_all_employees,
-      has_payroll_access, has_finance_access
-    - `backend/app/utils/permissions.py` — DEFAULT_PERMISSIONS matrix
-      for 6 roles × 6 modules × 6 actions. Functions: check_permission(),
-      require_permission(), require_own_record()
-    - `backend/app/utils/org_scope.py` — Recursive PostgreSQL CTE via
-      SQLAlchemy text(). Functions: get_subordinate_ids(),
-      get_visible_employee_ids()
-
-    *Files modified:*
-    - `backend/app/modules/core_masters/models.py` — User extended with
-      role, hashed_password, company_id, employee_id (use_alter circular FK),
-      last_login. RolePermission table added. SQLAlchemy event listeners
-      auto-populate created_by/modified_by on all tables via ContextVar.
-    - `backend/app/db/database.py` — current_user_id_ctx ContextVar added
-    - `backend/app/dependencies.py` — get_current_user() added alongside
-      get_tenant_id(). ContextVar set on every authenticated request.
-      Existing endpoints unchanged.
-    - `backend/app/modules/payroll/router.py` — bulk-generate endpoint
-      hardened with require_permission(current_user, "payroll", "submit")
-    - `backend/generate_test_token.py` — Interactive role selection.
-      JWT now carries user_id, role, employee_id, company_id.
-
-    *Migration:* `6fde2351c883_add_rbac_user_roles_org_scope`
-    - Alters hr_users: role, hashed_password, company_id, employee_id, last_login
-    - Creates hr_role_permissions with RLS enabled
-    - Manually adds audit FK constraints to 10 concrete tables
-    - Seeds DEFAULT_PERMISSIONS for test tenant
-
-    *Six roles:*
-    - `owner` — full access to all 6 modules
-    - `hr_manager` — HRMS + Payroll full, Finance/CRM none
-    - `finance_manager` — Finance + CRM full, HRMS none
-    - `manager` — HRMS view+approve team only, no payroll/finance
-    - `employee` — self-service only (own leaves, payslips, attendance)
-    - `auditor` — read-only across all 6 modules
-
-    *Tests:* 12 tests in `backend/app/tests/test_rbac.py`
-    - 8 original + 4 role segregation tests added in patch
-    - Covers: permission matrix, 403 enforcement, own record check,
-      HR/Finance boundary, Finance/HRMS boundary, manager scope,
-      auditor read-only across all modules
-
-    - [x] *Gate:* alembic upgrade head succeeds
-    - [x] *Gate:* pytest backend/app/tests/test_rbac.py — 12 passed
-    - [x] *Gate:* created_by auto-populated on new record creation
-    - [x] *Gate:* Employee-role token receives 403 on payroll endpoint
-    - [x] *Gate:* Org scope query returns correct subordinate IDs
-
-- [x] **Task 2.11:** Quote & Invoice Module (Finance)
-    *Requires Task 2.10 to be complete — built with RBAC from day one.*
-    *New module:* `backend/app/modules/finance/`
-
-    *Models required:*
-    - `Client` → client master (name, GSTIN, billing address, state code)
-    - `Quote` → transactional, docstatus, line items child table
-    - `QuoteLineItem` → child table (description, qty, rate, GST%, HSN/SAC)
-    - `Invoice` → transactional, docstatus, linkable to Quote
-    - `InvoiceLineItem` → child table
-    - `Payment` → payment recording against invoice (partial + full)
-
-    *Indian compliance mandatory:*
-    - GSTIN on client and company
-    - HSN/SAC code on line items
-    - CGST/SGST (intra-state) or IGST (inter-state) auto-calculated
-    - Invoice number sequential per financial year (INV-2526-0001)
-    - Outstanding amount = invoice total - sum of payments
-
-    *State machines:*
-    - Quote: Draft → Sent → Accepted / Rejected / Expired
-    - Invoice: Draft → Sent → Partially Paid → Paid / Cancelled
-
-    *RBAC integration:*
-    - All endpoints require require_permission(user, "finance", action)
-    - finance_manager and owner only
-
-    *VEDA scenarios this enables:*
-    - "Create a quote for Sharma Textiles for 5 days at ₹15,000/day"
-    - "Convert that quote to invoice and mark it sent"
-    - "What's my total outstanding this month?"
-    - "Sharma Textiles paid ₹45,000 against invoice INV-2526-0004"
-
-    - [x] *Gate:* GST correct for intra-state and inter-state test cases
-    - [x] *Gate:* Invoice number sequential per financial year
-    - [x] *Gate:* GET /invoices/{id} includes line items + GST breakdown + outstanding
-    - [x] *Gate:* POST /quotes/{id}/convert-to-invoice works
-    - [x] *Gate:* Employee-role token receives 403 on all finance endpoints
-
----
-
-## Phase 3: VEDA AI Layer (Build This Before Full Frontend)
-
-IMPORTANT: This phase moves earlier than originally planned.
-The AI layer is the product's core differentiator.
-Build one tool at a time, adding capabilities module by module.
-Do not build a full traditional ERP first.
-
-- [x] **Task 3.1:** LangGraph Supervisor + First Tool (List Employees)
-    - Supervisor routes messages to HR Agent
-    - HR Agent has ONE tool: list_employees (calls GET /api/employees/)
-    - Returns UIResponse of type TABLE
-    - [x] *Gate:* "Show me all active employees" → returns TABLE UIResponse
-    - [x] *Gate:* Table renders inline in chat (no page navigation)
-    - [x] *Gate:* VEDA system prompt includes user role and scope description
-    - [x] *Gate:* Owner asking "show all employees" returns all 22
-    - [x] *Gate:* Manager asking "show all employees" returns only their team
-
-- [x] **Task 3.2:** HR Agent — Core Tools
-    Tools added:
-    - get_employee (by name or ID) → FORM UIResponse
-    - list_leave_applications → TABLE UIResponse
-    - approve_leave (id) → APPROVAL UIResponse
-    - get_attendance_summary → TABLE UIResponse
-    - get_my_permissions() → TEXT UIResponse listing what the user can do
-    - helpers.py: resolve_employee_by_name (disambiguation TABLE for multiple matches)
-    - helpers.py: fetch_display_names (batch UUID → name resolution)
-    - [x] *Gate:* Full leave approval flow works in chat: list → select → approve → confirm
-
+- [x] **Task 3.1:** LangGraph Supervisor + list_employees tool
+- [x] **Task 3.2:** HR Agent — Read & Approve Tools
+    (get_employee, list_leave_applications, approve_leave,
+    get_attendance_summary, get_my_permissions,
+    helpers: resolve_employee_by_name, fetch_display_names)
 - [x] **Task 3.3:** HR Agent — Payroll Tools
-    Tools added:
-    - get_payroll_status (month, year) → TABLE UIResponse with employee names
-    - run_payroll_bulk → CONFIRM UIResponse (HITL — frontend executes endpoint)
-    - get_salary_slip (employee, month) → TABLE UIResponse
-    - payroll_agent.py wired into LangGraph graph
-    - 13 field mismatch fixes: employee_number, designation/department names resolved
-    - [x] *Gate:* "Run March payroll" → returns CONFIRM UIResponse before executing
-    *Role check enforced: only owner and hr_manager can run payroll.*
-    *Employee-role requests for payroll get a BLOCKER UIResponse.*
+    (get_payroll_status, run_payroll_bulk HITL, get_salary_slip,
+    payroll_agent.py wired into LangGraph)
 
-- [ ] **Task 3.4:** Finance Agent
-    Tools: create_quote, create_invoice, list_invoices, get_client
-    - [ ] *Gate:* "Create invoice for Sharma Textiles for ₹45,000" → FORM UIResponse pre-filled
+### Write Tools (next priority)
 
-- [ ] **Task 3.5:** Policy Engine Schema
+- [ ] **Task 3.4:** VEDA HR Write Tools — Employee Lifecycle
+    *Makes VEDA transactional, not just a dashboard.*
+    *All tools return FORM UIResponse pre-filled. HITL wiring executes API call.*
+    *Requires Task 2.12 (PATCH endpoint) to be complete first.*
+
+    Tools:
+
+    `add_employee_tool` (Owner / HR Manager)
+    - Extracts: name, joining date, department, designation, employment type
+    - Returns FORM UIResponse, veda_filled=True on extracted fields
+    - FK pickers: department_id, designation_id, employment_type_id
+    - Submit: POST /api/employees/
+    - [ ] *Gate:* "Add Rahul Sharma joining April 1 as Software Engineer" → FORM pre-filled
+
+    `update_employee_tool` (Owner / HR Manager)
+    - Uses open_record_id context or name disambiguation
+    - Returns FORM with current values pre-loaded, changed fields highlighted
+    - Submit: PATCH /api/employees/{id}
+    - [ ] *Gate:* "Change Dev Patel's department to Engineering" → FORM with dept pre-changed
+
+    `apply_for_leave_tool` (Employee — self only)
+    - Extracts: leave_type name, from_date, to_date, reason
+    - Fetches available leave types to validate leave_type name
+    - Returns FORM UIResponse pre-filled
+    - Submit: POST /api/leave-applications/ → POST /{id}/submit
+    - [ ] *Gate:* "Apply for casual leave April 3 to 5" → FORM pre-filled with correct type
+
+    `cancel_leave_tool` (Employee — own open/approved leaves)
+    - Lists employee's cancellable leaves first
+    - Returns CONFIRM UIResponse before cancelling
+    - Submit: POST /api/leave-applications/{id}/cancel
+    - [ ] *Gate:* "Cancel my leave for April 3" → CONFIRM → cancelled → balance restored
+
+    `get_leave_balance_tool` (All roles — org scoped)
+    - Aggregates leave applications to compute remaining days per type
+    - Returns TEXT UIResponse with breakdown per leave type
+    - [ ] *Gate:* "What's my leave balance?" → TEXT showing days remaining per type
+
+    `submit_payroll_tool` (Owner / HR Manager)
+    - Lists all draft slips for month with totals
+    - Returns CONFIRM UIResponse with employee count + total net pay
+    - Submit: POST /api/salary-slips/{id}/submit for each draft slip
+    - [ ] *Gate:* "Submit March payroll" → CONFIRM with total, submits all on confirm
+
+    `request_attendance_correction_tool` (Employee — self only)
+    - Extracts: date, correct_status, reason
+    - Returns FORM UIResponse pre-filled
+    - Submit: POST /api/attendance-requests/ → POST /{id}/submit
+    - [ ] *Gate:* "I was present March 25 but marked absent" → FORM pre-filled
+
+    `approve_attendance_request_tool` (Manager / HR Manager)
+    - Lists pending correction requests in visible scope
+    - Returns APPROVAL UIResponse per request
+    - Submit: POST /api/attendance-requests/{id}/approve
+    - [ ] *Gate:* "Show pending attendance corrections" → APPROVAL cards list
+
+    Supervisor updates:
+    - Add all 8 tools to classify_intent() with parameter extraction
+    - [ ] *Gate:* Supervisor correctly routes all 8 new intents
+
+- [ ] **Task 3.5:** VEDA Master Data Tools
+    *Lets owners configure system through conversation.*
+    *Lower priority — Classic UI (Task 4.10) handles this too.*
+
+    `create_department_tool`, `create_designation_tool`,
+    `create_leave_type_tool`, `create_salary_structure_tool`
+    (Owner / HR Manager — each returns FORM UIResponse)
+    - [ ] *Gate:* "Create a department called Engineering" → FORM → saved → appears in pickers
+
+- [ ] **Task 3.6:** Finance Agent
+    Tools: list_clients, create_client, create_quote, create_invoice,
+    list_invoices, record_payment, get_outstanding_summary
+    - [ ] *Gate:* "Create invoice for Sharma Textiles ₹45,000 + GST" → FORM pre-filled
+    - [ ] *Gate:* "Sharma paid ₹45,000 against INV-2526-004" → CONFIRM → recorded
+    - [ ] *Gate:* "What's total outstanding this month?" → TEXT with amount
+
+- [ ] **Task 3.7:** Policy Engine Schema
     *File:* `backend/app/modules/policy/models.py`
-    Stores: approval thresholds, mandatory wait periods, fallback rules
-    VEDA queries this at runtime — rules are NOT hardcoded in prompts
-    - [ ] *Gate:* PF/ESI thresholds, approval chains, LOP rules all queryable via API
+    Stores: approval thresholds, LOP rules, mandatory wait periods, chains
+    VEDA queries at runtime — rules NOT hardcoded in prompts
+    - [ ] *Gate:* PF/ESI thresholds, approval chains, LOP rules queryable via API
 
-- [ ] **Task 3.6:** Setup/Onboarding Agent
-    5-question VEDA conversation → fully configured tenant
-    - [ ] *Gate:* Fresh tenant → VEDA conversation → Company + Dept + Leave policy + Salary structure created
+- [ ] **Task 3.8:** Setup / Onboarding Agent
+    5-question VEDA Auto conversation → fully configured tenant
+    Calls Task 3.5 tools internally (departments, designations, etc.)
+    Requires TD-14 (company_type) resolved first
+    - [ ] *Gate:* Fresh tenant → conversation → Company + Dept + Leave types + Salary structure
 
-- [ ] **Task 3.7:** Personalised VEDA Greeting (Role-Aware Proactive Context)
-    On login, VEDA pre-fetches pending items scoped to the user's role:
-
-    Owner sees:
-    - Pending approvals count (all types)
-    - Payroll status (next run due date)
-    - Outstanding invoice total
-    - Team attendance summary
-
-    HR Manager sees:
-    - Pending leave approvals
-    - Attendance anomalies
-    - Upcoming payroll run
-
-    Manager sees:
-    - Pending leave approvals for their team only
-    - Their team's attendance for today
-
-    Employee sees:
-    - Their leave balance
-    - Their payslip status for last month
-    - Their pending attendance corrections
-
-    - [ ] *Gate:* Owner login → VEDA greeting includes payroll + invoice data
-    - [ ] *Gate:* Employee login → VEDA greeting shows only personal data
-    - [ ] *Gate:* Manager login → VEDA greeting shows only their team data
+- [ ] **Task 3.9:** Personalised VEDA Greeting (Role-Aware)
+    *Requires Task 3.4 (get_leave_balance_tool) to be complete.*
+    On login, VEDA pre-fetches pending items scoped to role:
+    - Owner: pending approvals count, payroll status, outstanding invoices, attendance summary
+    - HR Manager: pending leave approvals, attendance anomalies, next payroll run date
+    - Manager: pending team leave approvals, team attendance today
+    - Employee: leave balance by type, last payslip status, pending corrections
+    - [ ] *Gate:* Owner login → greeting includes real counts from DB
+    - [ ] *Gate:* Employee login → shows only personal data, no other employees
+    - [ ] *Gate:* Greeting uses get_leave_balance_tool for employee balance
 
 ---
 
-## Phase 4: Frontend — IDE Shell
+## Phase 4: Frontend
 
-IMPORTANT: This is NOT a traditional ERP frontend.
-The layout is a browser-based IDE. The center panel is the VEDA
-conversation. Everything else is chrome around the conversation.
+### Mode 1 — VEDA Auto ✅ Complete
+*4-panel IDE shell. VEDA drives. Human reviews and confirms.*
 
-### Layout (non-negotiable):
+- [x] **Task 4.1:** IDE Shell + UIResponse Component Registry (7 card types)
+- [x] **Task 4.2:** VEDA Chat Engine — live API, loading states, error handling
+- [x] **Task 4.3:** Active Record Context Wiring — row click → VEDA knows context
+- [x] **Task 4.4:** HITL Approval Flow — action buttons call FastAPI, VEDA continues
+- [x] **Task 4.5:** VEDA Diff Attribution — purple tint on VEDA-filled fields
+- [x] **Task 4.6:** Role-Aware VEDA Hint Chips
 
-```
-┌────┬─────────────────────────────────────────────────────┐
-│    │                TOP BAR (48px)                       │
-│ A  ├──────────────┬──────────────────┬───────────────────┤
-│ C  │              │                  │                   │
-│ T  │  LEFT PANEL  │  CENTER PANEL    │   RIGHT PANEL     │
-│ I  │  (record     │  ← VEDA CHAT →   │   (record         │
-│ V  │   navigator, │  inline cards    │    inspector,     │
-│ I  │   badges,    │  render here     │    field detail,  │
-│ T  │   reports)   │                  │    audit trail)   │
-│ Y  │              │                  │                   │
-│    │  240px       │  flex: 1         │  300px            │
-└────┴──────────────┴──────────────────┴───────────────────┘
- 48px
-```
+### Authentication Pages (required before all other Phase 4 work)
 
-- [x] **Task 4.1:** IDE Shell + Component Registry
-    Build the 4-panel layout shell.
-    Build the UIResponse component registry:
-      TABLE type → `<InlineTable />` component
-      FORM type → `<InlineForm />` component
-      APPROVAL type → `<ApprovalCard />` component
-      BLOCKER type → `<BlockerCard />` component
-      CONFIRM type → `<ConfirmCard />` component
-      PROGRESS type → `<ProgressCard />` component
-      TEXT type → `<TextMessage />` component
-    - [x] *Gate:* Shell renders correctly
-    - [x] *Gate:* Mock UIResponse objects render correct components
-    *RBAC-aware shell requirements:*
-    - Activity bar icons only show modules the user has access to
-    - Finance icon hidden for hr_manager role
-    - HRMS icon hidden for finance_manager role
-    - Settings icon only visible to owner and hr_manager
+- [ ] **Task 4.0:** Authentication Pages
+    *Blocks everything else — without login, no real user can access the product.*
+    *Requires Task 2.13 (auth endpoints) to be complete first.*
 
-- [x] **Task 4.2:** VEDA Chat Engine
-    Connect center panel to POST /api/veda/chat
-    Stream responses using Vercel AI SDK useChat hook
-    Render UIResponse components inline as messages arrive
-    - [x] *Gate:* Real API call → UIResponse → correct component renders
+    Pages:
+    - Login page: email + password → calls POST /api/auth/login → stores JWT
+    - Forgot password page: email → triggers reset flow
+    - Change password page: authenticated user
+    - First login / set password: when invited user logs in for first time
 
-- [ ] **Task 4.3:** Active Record Context Wiring
-    Open record type + ID passed automatically on every message
-    Record navigator in left panel updates on record open
-    Right panel shows inspector for active record
-    - [ ] *Gate:* Opening an employee record → VEDA knows context without being told
+    JWT storage: httpOnly cookie (not localStorage — security requirement)
+    Auto-redirect to login if JWT missing or expired
+    Auto-redirect to dashboard after successful login
 
-- [ ] **Task 4.4:** HITL Approval Flow
-    Approval cards in chat are interactive — buttons call FastAPI endpoints
-    After action: card updates in place, VEDA continues conversation
-    - [ ] *Gate:* Leave approval from chat card → DB updates → badge decrements → VEDA confirms
+    - [ ] *Gate:* Owner logs in with email/password, gets to VEDA Auto dashboard
+    - [ ] *Gate:* Expired JWT → auto-redirect to login, no blank page
+    - [ ] *Gate:* Wrong password → clear error message, no token stored
 
-- [ ] **Task 4.5:** VEDA Diff Attribution
-    Fields filled by VEDA render with purple tint (like Cursor ghost text)
-    Accept all / reject all / field-by-field editing
-    - [ ] *Gate:* VEDA-filled form fields visually distinct from human-filled
+### Design System Foundation (prerequisite for all Classic + VEDA Assist pages)
 
-- [ ] **Task 4.6:** Role-Aware VEDA Hint Chips
-    The suggested action chips below VEDA's greeting must be role-appropriate.
-    Owner sees: "Run payroll", "Create invoice", "Add employee"
-    HR Manager sees: "Approve leaves", "Run payroll", "View attendance"
-    Manager sees: "Approve team leaves", "View team attendance"
-    Employee sees: "Apply for leave", "View my payslip", "Mark attendance"
-    - [ ] *Gate:* Each role sees only their relevant hint chips
+- [ ] **Task 4.7a:** Design System Migration
+    *Must be completed before Task 4.7 and all subsequent frontend tasks.*
+    *Establishes the visual foundation that every Classic and VEDA Assist page builds on.*
+    *VEDA Auto dark shell is NOT touched.*
+
+    Part 1 — shadcn/ui initialisation:
+    - `npx shadcn@latest init` with New York style, Blue base color, CSS variables on
+    - Blue base: primary `221.2 83.2% 53.3%` — consistent with Linear/Supabase/Vercel aesthetic
+
+    Part 2 — Install all required shadcn components and blocks:
+    - Core components: button, input, label, form, select, textarea, checkbox,
+      radio-group, switch, badge, card, separator, dialog, sheet, dropdown-menu,
+      popover, tooltip, toast, alert, avatar, tabs, table, skeleton, scroll-area,
+      calendar, date-picker, breadcrumb, progress
+    - Sidebar component: `npx shadcn add sidebar`
+    - Blocks: `sidebar-07` (Classic/VEDA Assist nav shell),
+              `sidebar-15` (VEDA Assist dual-panel layout),
+              `dashboard-01` (owner home — KPI cards + chart + DataTable),
+              `login-04` (login page — split layout)
+    - TanStack Table: `npm install @tanstack/react-table`
+
+    Part 3 — Update globals.css with Udoo design tokens:
+    - Light theme (`:root`): white background, blue primary, blue-grey borders
+    - Dark theme (`.dark`): existing VEDA Auto dark shell preserved
+    - Custom tokens: `--veda-fill` (purple, intentionally distinct from blue brand)
+    - Status colour tokens: active/inactive/pending/approved/rejected/draft/submitted
+
+    Part 4 — Create `frontend/lib/design-system.ts`:
+    - Badge variant maps for all domain statuses (leave, payroll, employee,
+      attendance, invoice)
+    - VEDAMode type and labels
+    - NAV_MODULES config (used by sidebar in Tasks 4.7 and 4.9)
+    - `formatINR()` — Indian number formatting
+    - `formatDate()` — Indian date formatting
+
+    - [ ] *Gate:* `components.json` shows style: new-york, baseColor: blue
+    - [ ] *Gate:* At least 25 component files in `frontend/components/ui/`
+    - [ ] *Gate:* `@tanstack/react-table` present in package.json
+    - [ ] *Gate:* `globals.css` contains `--veda-fill`, `--primary`, `--sidebar-primary`
+    - [ ] *Gate:* `frontend/lib/design-system.ts` exists with 100+ lines
+
+### Mode 2 — VEDA Assist
+
+- [ ] **Task 4.7:** Mode Switcher + Shell Routing
+    Top bar: VEDA Auto | VEDA Assist | Classic
+    - VEDA Auto: 4-panel IDE shell
+    - VEDA Assist: left sidebar + main content + VEDA co-pilot right panel
+    - Classic: left sidebar + main content, no VEDA panel
+    Mode stored in localStorage. Persists across page refreshes.
+    - [ ] *Gate:* Switching modes changes layout without page reload
+    - [ ] *Gate:* Mode persists after browser refresh
+    - [ ] *Gate:* RBAC enforced in all three modes identically
+
+- [ ] **Task 4.8:** VEDA Assist Panel Component
+    *Right-side co-pilot attached to every form page.*
+    *Calls POST /api/veda/chat with form context on each interaction.*
+
+    Behaviours:
+    - Form open → VEDA greets with record context
+    - Field focus → VEDA suggests valid values
+    - FK field → VEDA shows matching options as user types
+    - Pre-save → VEDA runs compliance check (PF ceiling, ESI threshold, etc.)
+    - Inline Q&A: user asks questions without leaving the form
+    - VEDA responses in panel — never interrupt the form
+
+    - [ ] *Gate:* Employee form in VEDA Assist → panel shows context greeting
+    - [ ] *Gate:* Basic salary < 50% CTC → VEDA flags before save
+    - [ ] *Gate:* "What documents does a new employee need?" → VEDA answers in panel
+
+### Mode 3 — Classic (+ shared form pages for VEDA Assist)
+
+- [ ] **Task 4.9:** Classic Shell + Navigation
+    Left sidebar, RBAC-scoped sections:
+    - HRMS: Employees, Leave, Attendance
+    - Payroll: Salary Structures, Salary Slips
+    - Finance: Clients, Quotes, Invoices, Payments
+    - Setup: Company, Departments, Designations, Leave Types,
+              Salary Components, Employment Types, Branches, Holiday List
+    - Admin: Users (owner only)
+    - [ ] *Gate:* All navigation renders, RBAC hides inaccessible sections
+    - [ ] *Gate:* Same sidebar shell used for Classic and VEDA Assist
+
+- [ ] **Task 4.10:** Setup / Master Data Pages
+    *Foundation. Must complete before employee pages.*
+
+    Pages (list + create + edit for each):
+    - Company (edit only — single record, includes company_type after TD-14)
+    - Departments
+    - Designations
+    - Employment Types
+    - Branches
+    - Leave Types (max_days, carry_forward, paid/unpaid flag)
+    - Salary Components (earning/deduction, fixed/percentage, formula)
+    - Salary Structures (link components, CTC breakdown)
+    - Holiday List (year-wise, import from CSV)
+
+    - [ ] *Gate:* Owner sets up dept → designation → leave type → salary structure in Classic
+    - [ ] *Gate:* Same flow in VEDA Assist with co-pilot active
+
+- [ ] **Task 4.11:** User Management Pages (Admin section — owner only)
+    *Requires Task 2.13 backend.*
+
+    Pages:
+    - User list — shows all users, role, status (active/inactive), last login
+    - Invite user form — email, role, linked employee (optional at invite time)
+    - User detail — change role, deactivate, reset password, link to employee
+
+    - [ ] *Gate:* Owner invites HR manager → HR manager receives credentials → logs in
+    - [ ] *Gate:* Owner deactivates user → subsequent login fails with clear message
+
+- [ ] **Task 4.12:** Employee Module Pages
+    *Requires Task 4.10 (master data) and Task 2.12 (PATCH endpoint).*
+
+    Pages:
+    - Employee list — search, filter by status/dept/designation, paginated
+    - Employee create form
+    - Employee detail/edit — tabbed:
+      Tab 1: Personal (name, DOB, gender, contact, address, emergency contact)
+      Tab 2: Employment (joining date, dept, designation, employment type, manager)
+      Tab 3: Payroll (salary structure, bank details, PF/ESI applicability, CTC)
+      Tab 4: Documents (upload offer letter, Aadhaar, PAN, certificates)
+      Tab 5: History (salary revisions, transfers, role changes — read only)
+    - Employee deactivate / reactivate
+    - Create user account button (links employee to login credentials)
+
+    - [ ] *Gate:* HR adds complete employee with all 5 tabs in Classic
+    - [ ] *Gate:* Employee immediately appears in VEDA Auto "show all employees"
+    - [ ] *Gate:* Create account → employee can log in as employee role
+
+- [ ] **Task 4.13:** Leave Module Pages
+
+    Pages:
+    - Leave applications list — filter by status/employee/date range
+    - Apply for leave (employee self-service) — type dropdown, date picker, reason
+    - Leave approval queue — manager/HR, bulk approve/reject with reason
+    - Leave balance view — per employee, per type, days used/remaining
+    - Leave calendar — monthly, colour-coded by leave type, team view
+
+    - [ ] *Gate:* Employee applies in Classic → appears in manager queue
+    - [ ] *Gate:* Manager bulk approves → balances update immediately
+    - [ ] *Gate:* Same records visible in VEDA Auto
+
+- [ ] **Task 4.14:** Attendance Module Pages
+
+    Pages:
+    - Attendance list — filter by employee/date/status
+    - Bulk attendance entry — date + all employees for that day, mark status
+    - Attendance correction request (employee self-service)
+    - Correction approval queue (manager/HR)
+    - Monthly attendance summary — present/absent/leave/half-day per employee
+
+    - [ ] *Gate:* HR marks attendance for 10 employees for a date
+    - [ ] *Gate:* Employee submits correction, manager approves, record updates
+    - [ ] *Gate:* Monthly summary shows correct counts
+
+- [ ] **Task 4.15:** Payroll Module Pages
+    *Requires Task 2.14 (PDF generation).*
+
+    Pages:
+    - Payroll run — month/year/working days, generate with preview count
+    - Salary slips list — filter by month/employee/status
+    - Salary slip detail — full Indian compliance breakdown:
+      Earnings: basic, HRA, special allowance, other allowances
+      Deductions: PF employee (12%), ESI employee (0.75%), PT, TDS, LOP, advances
+      Employer contributions: PF employer (12%), ESI employer (3.25%)
+      Net pay
+    - Bulk submit — review all drafts, one-click submit with total
+    - Payslip PDF download — individual and bulk (zip)
+
+    - [ ] *Gate:* HR generates, reviews, submits payroll end-to-end in Classic
+    - [ ] *Gate:* PDF has correct PF/ESI/PT breakdown with employer contributions
+    - [ ] *Gate:* Employee sees only their own slip
+
+- [ ] **Task 4.16:** Finance Module Pages
+
+    Pages:
+    - Client list + create/edit (GSTIN, billing address, state code)
+    - Quote list + create (line items, HSN/SAC codes, GST auto-calculation)
+    - Quote detail — convert to invoice, mark sent, accept/reject/expire actions
+    - Invoice list + create
+    - Invoice detail — record payment (partial + full), mark sent, download PDF
+    - Payment list — filter by client/date/amount
+
+    - [ ] *Gate:* Finance manager creates invoice, IGST for inter-state in Classic
+    - [ ] *Gate:* CGST+SGST auto-applied for intra-state
+    - [ ] *Gate:* Partial payment → outstanding balance updates correctly
+
+- [ ] **Task 4.17:** Notification Centre
+    *In-app notifications for key events. Required before first paying customer.*
+
+    Events that trigger notifications:
+    - Leave approved/rejected → employee notified
+    - Leave request pending → manager notified
+    - Payroll generated → HR Manager notified
+    - Attendance correction approved/rejected → employee notified
+    - New employee added → HR Manager + owner notified
+    - Invoice paid → finance manager notified
+
+    Implementation:
+    - `notifications` table in Postgres (tenant_id, user_id, type, message, read, created_at)
+    - `GET /api/notifications/` — list unread for current user
+    - `POST /api/notifications/{id}/read` — mark as read
+    - Bell icon in top bar with unread count badge
+    - Notification dropdown with list of recent alerts
+    - In-app only for now; email/WhatsApp delivery in Phase 5
+
+    - [ ] *Gate:* Leave approved → employee sees notification in bell icon
+    - [ ] *Gate:* Unread count badge decrements on read
+    - [ ] *Gate:* Notifications are tenant-isolated
+
+- [ ] **Task 4.18:** AI Availability Detection + Auto Fallback to Classic
+
+    Behaviour:
+    - Frontend polls `GET /api/health` every 60 seconds
+    - 2 consecutive failures → auto-switch to Classic mode
+    - Amber top bar banner: "VEDA unavailable — Classic mode active"
+    - VEDA Auto and VEDA Assist buttons greyed out, not hidden
+    - Health restored → banner: "VEDA is back — switch to VEDA Auto?" (one click)
+    - All Classic and VEDA Assist pages work during outage — zero degradation
+
+    - [ ] *Gate:* Stop backend → banner appears within 2 minutes, Classic fully works
+    - [ ] *Gate:* Restart backend → restore prompt appears, switching works
+    - [ ] *Gate:* Context preserved when switching back to VEDA Auto
 
 ---
 
-## Phase 5: Horizontal Scaling
-*Use the proven patterns from Phase 2–4 to scale remaining modules.*
+## Phase 5: Full HRMS Depth
 
-- [ ] **Task 5.1:** Full Payroll Depth.
-    - Payroll runs, bank transfer files, Form 16, salary revision history.
-- [ ] **Task 5.2:** Expense Management.
-    - Employee expense claims, approval workflow, reimbursement tracking.
-- [ ] **Task 5.3:** Full Accounting Module.
-    - Chart of accounts, journal entries, P&L, balance sheet, GST returns (GSTR-1, GSTR-3B).
-- [ ] **Task 5.4:** CRM & Sales.
-    - Lead, Opportunity, full Quote-to-Cash pipeline.
-- [ ] **Task 5.5:** Inventory & Manufacturing.
-    - Item master, stock ledger, purchase orders, BOM.
-- [ ] **Task 5.6:** WhatsApp Integration.
-    - Leave approval via WhatsApp, salary slip delivery, invoice notifications.
-    - (Indian SMEs operate primarily on WhatsApp — this is a key retention feature.)
+- [ ] **Task 5.1:** Payroll Depth
+    - LOP (Loss of Pay) — auto-deduct for unapproved absences before payroll run
+    - Mid-month joiner/leaver proration — partial month salary calculation
+    - Salary revision — effective date, retroactive arrears calculation
+    - Advance salary — record and deduct from future payslip
+    - PF ECR file generation (text file for EPFO portal upload)
+    - ESI return file generation (half-yearly)
+    - Form 16 generation (Part A from TDS traces + Part B salary computation)
+    - Bank transfer file (NEFT/RTGS format — bank-specific templates)
+    - Payslip bulk email delivery (per employee via SMTP)
+
+- [ ] **Task 5.2:** Leave Depth
+    - Leave balance ledger — proper credit/debit per transaction
+    - Leave encashment — convert unused days to payout on resignation/year-end
+    - Carry-forward rules — max days rollover, auto-lapse remainder
+    - Comp-off — create compensatory off from overtime/holiday work
+    - Leave calendar — organisation-wide, team view, conflict detection
+    - Half-day leave — morning/afternoon distinction
+    - Multi-level approval chains — employee → manager → HR → configurable
+
+- [ ] **Task 5.3:** Attendance Depth
+    - Shift management — morning/evening/night, rotational shifts
+    - Shift roster — per employee per week assignment
+    - Late mark rules — grace period (e.g. 15 min), half-day threshold
+    - Overtime recording and calculation
+    - GPS/selfie attendance — mobile-first for field staff
+    - Biometric device integration — webhook receiver for punches
+    - Weekly off configuration — Sunday only, Saturday-Sunday, custom
+
+- [ ] **Task 5.4:** Expense Management
+    - Expense claim creation — employee submits with category and amount
+    - Receipt upload — image/PDF attachment
+    - Approval workflow — manager → finance manager
+    - Reimbursement recording — mark as paid
+    - Payroll integration — approved expenses added to salary slip as non-taxable
+    - Expense policy — per-category limits, VEDA checks against policy
+
+- [ ] **Task 5.5:** Full Accounting Module
+    - Chart of accounts — standard Indian COA template
+    - Journal entries — manual + auto-generated from payroll/invoices
+    - P&L statement — monthly/quarterly/annual
+    - Balance sheet
+    - Bank reconciliation
+    - GST returns — GSTR-1 (outward supplies), GSTR-3B (summary)
+    - TDS returns — Form 24Q (salary TDS), Form 26Q (contractor TDS)
+    - TDS certificate generation — Form 16A for vendors
+
+- [ ] **Task 5.6:** Recruitment / ATS
+    - Job posting — internal + external (Naukri/LinkedIn export)
+    - Candidate pipeline — applied → screened → interviewed → offered → joined
+    - Interview scheduling — calendar integration
+    - Offer letter generation — PDF with salary breakup
+    - Seamless handoff to employee onboarding on acceptance
+
+- [ ] **Task 5.7:** Performance Management
+    - Goal setting — OKRs or KRA/KPI framework, configurable per company
+    - Mid-year and annual review cycles
+    - 360° feedback — self, manager, peer, subordinate
+    - Performance rating scale — configurable (1-5, A-E, etc.)
+    - Performance-linked increment workflow — rating → increment % → salary revision
+
+- [ ] **Task 5.8:** Reporting & Compliance Dashboard
+    - Headcount reports — by dept, designation, location, employment type
+    - Attrition reports — monthly, quarterly, department-wise
+    - Payroll cost reports — CTC vs gross vs net, employer cost
+    - Compliance calendar — PF/ESI/PT/TDS due dates with reminder alerts
+    - Statutory reports — PF Form 12A, ESI Form 6, PT challan
+    - Custom report builder — drag-and-drop fields, export CSV/PDF
+    - Target: 50+ standard reports at launch, 100+ by v2
+
+- [ ] **Task 5.9:** Data Import / Migration
+    *Required for any SME switching from Excel or another HRMS.*
+    - Employee bulk import — CSV template with validation
+    - Leave balance import — opening balances when switching mid-year
+    - Attendance history import — last 12 months
+    - Salary history import — last 6 months for arrears/Form 16
+    - Validation report before import — show errors, allow correction
+    - [ ] *Gate:* Import 50 employees from CSV, all fields map correctly
+
+- [ ] **Task 5.10:** Notification Delivery (Email + WhatsApp)
+    *Extends Task 4.17 in-app notifications to external channels.*
+    - Email delivery — SMTP integration, per-event templates
+    - WhatsApp delivery — leave approved, payslip ready, attendance alert
+      (Indian SMEs operate primarily on WhatsApp — key retention feature)
+    - Notification preferences — user can choose channel per event type
+    - Bulk announcements — HR broadcasts to all employees
+
+- [ ] **Task 5.11:** Mobile PWA
+    *Indian factory workers and field staff use phones exclusively.*
+    - Progressive Web App — installable on Android/iOS
+    - Mobile-optimised views for: leave application, attendance marking,
+      payslip view, notification centre
+    - Offline support for attendance marking (sync when connected)
+
+- [ ] **Task 5.12:** CRM & Sales
+    - Lead management — source, status, assigned to
+    - Opportunity tracking — stage, value, close date
+    - Full Quote-to-Cash — lead → quote → invoice → payment
+    - Integration with Finance module (invoices flow into accounting)
 
 ---
 
 ## Ongoing: Technical Debt & Hardening
-*Address these before first paying customer.*
 
-- [x] **TD-1:** Real JWT decode in `dependencies.py` (Task 2.7 above).
-- [ ] **TD-2:** Database-level RLS via `current_setting('app.current_tenant_id')` in Alembic migrations.
+- [x] **TD-1:** Real JWT decode in `dependencies.py`
+- [ ] **TD-2:** Database-level RLS via `current_setting('app.current_tenant_id')`
+      in Alembic migrations. Currently only app-level filtering.
 - [ ] **TD-3:** Audit log table wired to all transactional tables via SQLAlchemy events.
-- [ ] **TD-4:** Add `Field(description="...")` to all Pydantic schemas (required for VEDA agent accuracy).
-- [x] **TD-5:** Performance — replace deep Employee eager loads on Leave/Attendance queries with `EmployeeSummary` schema.
-- [x] **TD-6:** Add `POST /leave-applications/{id}/cancel` endpoint (currently missing).
-- [ ] **TD-7:** Policy engine not built — approval thresholds currently not queryable via API.
-- [ ] **TD-8:** UIResponse schema not yet wired to LangGraph output.
-- [ ] **TD-9:** Vercel AI SDK streaming not yet implemented.
-- [ ] **TD-10:** VEDA diff attribution (purple tint) not yet implemented.
-- [x] **TD-11:** Frontend shell uses wrong layout (sidebar VEDA vs IDE shell with 4 panels).
-- [ ] **TD-12:** Permission checks not yet added to existing HRMS and Payroll
-      endpoints (only new endpoints from Task 2.11+ have require_permission).
+      Every create/update/delete records who did it and when.
+- [ ] **TD-4:** Add `Field(description="...")` to all Pydantic schemas.
+      Required for VEDA agent accuracy — Claude reads field descriptions.
+- [x] **TD-5:** Performance — replace deep Employee eager loads with EmployeeSummary schema
+- [x] **TD-6:** Add POST /leave-applications/{id}/cancel endpoint
+- [ ] **TD-7:** Policy engine not built — approval thresholds not queryable via API
+- [x] **TD-8:** UIResponse schema wired to LangGraph output
+- [x] **TD-9:** Direct fetch streaming implemented
+- [x] **TD-10:** VEDA diff attribution (purple tint) implemented
+- [x] **TD-11:** Frontend shell uses correct 4-panel IDE layout
+- [ ] **TD-12:** Permission checks missing from existing HRMS/Payroll endpoints
+      (only endpoints from Task 2.11+ have require_permission).
       Add to all existing endpoints before first paying customer.
-- [ ] **TD-13:** Org scope filtering not yet applied to existing list endpoints.
-      Currently all tenants see all employees regardless of role.
-      Add get_visible_employee_ids() to all list endpoints before
-      first paying customer.
+- [ ] **TD-13:** Org scope filtering not applied to all list endpoints.
+      Add get_visible_employee_ids() to all list endpoints before first paying customer.
 - [ ] **TD-14:** `company_type` field missing from Company model.
-      Add to `core_masters/models.py` with options: sole_proprietorship,
-      partnership, llp, private_limited, public_limited, opc, section_8,
-      trust, government. Nullable column, Alembic migration required.
-      Required for Task 3.6 onboarding agent — compliance defaults differ
-      by org type (PF/ESI thresholds, GST filing category).
-      Address in Task 3.6 or before first paying customer.
-
-- [ ] **TD-15:** Payroll bulk-generate uses company-level salary structure
-      lookup instead of employee-specific `salary_structure_id`.
-      Currently fetches the first active structure for the company.
-      When a company has multiple salary structures (e.g. junior vs senior),
-      all employees incorrectly get the same structure.
-      Fix: Use `employee.salary_structure_id` if set, fall back to
-      company default only if null.
-      Address before first paying customer with multiple salary grades.
+      Options: sole_proprietorship, partnership, llp, private_limited,
+      public_limited, opc, section_8, trust, government.
+      Nullable column, Alembic migration required.
+      Required for Task 3.8 onboarding agent and PF/ESI compliance thresholds.
+- [ ] **TD-15:** Payroll bulk-generate uses company-level salary structure.
+      Fix: use employee.salary_structure_id, fall back to company default.
+- [ ] **TD-16:** JWT tokens expire after 7 days.
+      Production: implement proper refresh token flow (Task 2.13 covers this).
+- [ ] **TD-17:** Supabase free tier pauses after 7 days inactivity.
+      Production: upgrade to paid plan. Dev: document resume process.
+- [ ] **TD-18:** Log files must never be committed.
+      Verify *.log in .gitignore, add pre-commit hook to block log files.
+- [ ] **TD-19:** CORS currently allows only localhost:3000.
+      Production: update to actual domain, remove localhost from allowed origins.
+- [ ] **TD-20:** No rate limiting on API endpoints.
+      Add per-tenant rate limiting before first paying customer.
+      Reference: COST_SCENARIO_STUDY.md rate limit recommendations.
+- [ ] **TD-21:** No input sanitisation beyond Pydantic validation.
+      Add SQL injection protection audit, XSS prevention on text fields.
+- [ ] **TD-22:** Secrets in .env not rotated since project start.
+      Rotate JWT_SECRET_KEY and DATABASE_URL password before first paying customer.

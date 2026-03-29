@@ -17,17 +17,31 @@ export const metadata: Metadata = {
   description: "Next-generation ERP for Indian SMEs",
 };
 
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${dmSans.variable} ${jetbrainsMono.variable} antialiased font-sans`}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <TooltipProvider>
+            {children}
+            <Toaster position="bottom-right" richColors theme="system" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

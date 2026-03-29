@@ -4,6 +4,7 @@ import { Users, DollarSign, Settings, BarChart2, Home as HomeIcon, Send } from '
 import { VEDAMessageBubble } from '@/components/veda/VEDAMessage';
 import { VEDAMessage, UserRole, UIAction, UIContext } from '@/types/ui-response';
 import { sendVEDAMessage, buildNullContext, executeAction } from '@/lib/veda-client';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 // ── Mock user (replace with JWT context in Task 4.3) ──────────────────────
 const MOCK_USER = {
@@ -250,28 +251,40 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg-base)] overflow-hidden">
+    <div className="flex flex-col h-screen bg-(--bg-base) overflow-hidden transition-colors duration-300 font-sans">
 
       {/* TOP BAR */}
       <div
-        className="flex items-center justify-between px-4 border-b border-[var(--border-subtle)] flex-shrink-0"
+        className="flex items-center justify-between px-4 border-b border-(--border-subtle) flex-shrink-0 bg-(--bg-panel)/80 backdrop-blur-md z-30"
         style={{ height: 'var(--top-bar-height)' }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-[var(--veda-purple)] font-bold tracking-widest text-sm">UDOO</span>
-          <span className="text-[var(--border-default)]">|</span>
-          <span className="text-[var(--text-secondary)] text-xs">{MOCK_USER.company_name}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {activeContext.open_record_type && (
-            <span className="text-[var(--text-muted)] text-xs">
-              {activeContext.open_record_type} open
-            </span>
-          )}
-          <span className="text-[var(--text-muted)] text-xs">{MOCK_USER.full_name}</span>
-          <div className="px-2 py-0.5 rounded bg-[var(--veda-purple-bg)] text-[var(--veda-purple)] text-xs border border-[var(--accent-primary)]">
-            {MOCK_USER.role}
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-(--veda-purple) to-[#a855f7] flex items-center justify-center shadow-(--veda-glow)">
+              <span className="text-white font-bold text-xs">U</span>
+            </div>
+            <span className="text-(--text-primary) font-bold tracking-tight text-sm">UDOO</span>
           </div>
+          <span className="text-(--border-default) font-light">|</span>
+          <span className="text-(--text-secondary) text-xs font-medium">{MOCK_USER.company_name}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          {activeContext.open_record_type && (
+            <div className="hidden md:flex items-center gap-2 px-2 py-1 rounded-full bg-(--bg-panel-hover) border border-(--border-subtle)">
+              <div className="w-1.5 h-1.5 rounded-full bg-(--veda-purple) animate-pulse" />
+              <span className="text-(--text-muted) text-[10px] uppercase tracking-wider font-bold">
+                {activeContext.open_record_type}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <span className="text-(--text-secondary) text-xs">{MOCK_USER.full_name}</span>
+            <div className="px-2 py-0.5 rounded-md bg-(--veda-purple-bg) text-(--veda-purple) text-[10px] font-bold border border-(--veda-purple-border) uppercase">
+              {MOCK_USER.role}
+            </div>
+          </div>
+          <div className="h-4 w-px bg-(--border-subtle)" />
+          <ThemeToggle />
         </div>
       </div>
 
@@ -280,7 +293,7 @@ export default function Home() {
 
         {/* ACTIVITY BAR */}
         <div
-          className="flex flex-col items-center py-2 gap-1 border-r border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-shrink-0"
+          className="flex flex-col items-center py-4 gap-2 border-r border-(--border-subtle) bg-(--bg-panel) flex-shrink-0 z-20"
           style={{ width: 'var(--activity-bar-width)' }}
         >
           {visibleModules.map(mod => (
@@ -292,36 +305,41 @@ export default function Home() {
               }}
               title={mod.toUpperCase()}
               className={`
-                w-9 h-9 flex items-center justify-center rounded transition-colors
+                w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200
                 ${activeModule === mod
-                  ? 'text-[var(--text-primary)] bg-[var(--bg-panel-hover)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}
+                  ? 'text-(--veda-purple) bg-(--veda-purple-bg) shadow-sm'
+                  : 'text-(--text-muted) hover:text-(--text-primary) hover:bg-(--bg-panel-hover)'}
               `}
             >
               {MODULE_ICONS[mod]}
             </button>
           ))}
+          <div className="mt-auto pb-2 text-(--text-muted)">
+            <Settings size={18} className="cursor-pointer hover:text-(--text-primary) transition-colors" />
+          </div>
         </div>
 
         {/* LEFT PANEL */}
         <div
-          className="flex flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-shrink-0 overflow-hidden"
+          className="flex flex-col border-r border-(--border-subtle) bg-(--bg-panel)/50 flex-shrink-0 overflow-hidden"
           style={{ width: 'var(--left-panel-width)' }}
         >
-          <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-            <span className="text-[var(--text-muted)] text-xs uppercase tracking-wider">
-              {activeModule.toUpperCase()}
+          <div className="px-4 py-3 border-b border-(--border-subtle) flex items-center justify-between">
+            <span className="text-(--text-primary) text-[11px] font-bold uppercase tracking-widest">
+              {activeModule}
             </span>
           </div>
           <div className="flex-1 overflow-y-auto">
             {recentRecords.length === 0 ? (
-              <p className="text-[var(--text-muted)] text-xs px-3 py-2">
-                No records opened yet.
-              </p>
+              <div className="px-4 py-8 text-center">
+                <p className="text-(--text-muted) text-xs italic">
+                    No records opened.
+                </p>
+              </div>
             ) : (
-              <div>
-                <p className="text-[var(--text-muted)] text-xs px-3 py-2 uppercase tracking-wider">
-                  Recent
+              <div className="py-2">
+                <p className="text-(--text-muted) text-[10px] px-4 py-2 uppercase tracking-widest font-bold opacity-60">
+                  Recent Records
                 </p>
                 {recentRecords.map(rec => (
                   <button
@@ -333,15 +351,19 @@ export default function Home() {
                       open_module: rec.module,
                     }))}
                     className={`
-                      w-full text-left px-3 py-1.5 text-xs transition-colors
-                      hover:bg-[var(--bg-panel-hover)]
+                      w-full text-left px-4 py-2 text-xs transition-all
+                      hover:bg-(--bg-panel-hover) group
                       ${activeContext.open_record_id === rec.id
-                        ? 'text-[var(--text-primary)] border-l-2 border-[var(--accent-primary)]'
-                        : 'text-[var(--text-secondary)]'}
+                        ? 'text-(--text-primary) bg-(--bg-panel-hover) border-r-2 border-(--veda-purple)'
+                        : 'text-(--text-secondary)'}
                     `}
                   >
-                    <span className="text-[var(--text-muted)] mr-1">{rec.type}</span>
-                    {rec.id.slice(0, 8)}...
+                    <div className="flex flex-col">
+                      <span className="text-(--veda-purple) text-[10px] font-bold uppercase tracking-tighter group-hover:opacity-100 opacity-70">
+                        {rec.type}
+                      </span>
+                      <span className="truncate">{rec.id.slice(0, 12)}</span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -350,24 +372,27 @@ export default function Home() {
         </div>
 
         {/* CENTER PANEL — VEDA CONVERSATION */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden bg-gradient-to-b from-(--bg-base) to-(--bg-panel)/20 relative">
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
             {messages.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center h-full gap-3">
-                <div className="w-10 h-10 rounded bg-[var(--accent-primary)] flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">V</span>
+              <div className="flex flex-col items-center justify-center h-full gap-5 max-w-2xl mx-auto text-center animate-in fade-in zoom-in duration-500">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-(--veda-purple) to-[#a855f7] flex items-center justify-center shadow-xl shadow-(--veda-glow) transform hover:scale-105 transition-transform duration-300">
+                  <span className="text-white font-bold text-3xl">V</span>
                 </div>
-                <p className="text-[var(--text-secondary)] text-sm">
-                  VEDA is ready. Ask me anything.
-                </p>
-                <div className="flex flex-wrap gap-2 justify-center mt-2">
+                <div className="space-y-2">
+                  <h2 className="text-(--text-primary) text-xl font-bold tracking-tight">Welcome, {MOCK_USER.full_name}</h2>
+                  <p className="text-(--text-secondary) text-sm px-4">
+                    I am VEDA, your AI-Native ERP orchestration engine. Ask me to run payroll, approve leaves, or generate financial insights.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center mt-4">
                   {ROLE_HINTS[MOCK_USER.role].map(hint => (
                     <button
                       key={hint}
                       onClick={() => handleHintClick(hint)}
-                      className="px-3 py-1.5 rounded border border-[var(--border-default)] text-[var(--text-secondary)] text-xs hover:border-[var(--border-active)] hover:text-[var(--text-primary)] transition-colors"
+                      className="px-4 py-2 rounded-xl bg-(--bg-panel) border border-(--border-subtle) text-(--text-secondary) text-xs hover:border-(--veda-purple-border) hover:text-(--veda-purple) hover:bg-(--veda-purple-bg) transition-all shadow-sm"
                     >
                       {hint}
                     </button>
@@ -376,54 +401,65 @@ export default function Home() {
               </div>
             )}
 
-            {messages.map(msg => (
-              <VEDAMessageBubble
-                key={msg.id}
-                msg={msg}
-                onAction={handleAction}
-                onRowClick={handleRowClick}
-                onHintClick={handleHintClick}
-              />
-            ))}
+            <div className="max-w-3xl mx-auto space-y-6">
+              {messages.map(msg => (
+                <VEDAMessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  onAction={handleAction}
+                  onRowClick={handleRowClick}
+                  onHintClick={handleHintClick}
+                />
+              ))}
 
-            {/* Typing indicator */}
-            {isLoading && (
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 rounded bg-[var(--accent-primary)] flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-xs font-bold">V</span>
+              {/* Typing indicator */}
+              {isLoading && (
+                <div className="flex items-start gap-4 mb-4 animate-in fade-in duration-300">
+                  <div className="w-8 h-8 rounded-lg bg-(--veda-purple) flex items-center justify-center shadow-lg shadow-(--veda-glow) flex-shrink-0">
+                    <span className="text-white text-[10px] font-bold uppercase tracking-tighter">VEDA</span>
+                  </div>
+                  <div className="bg-(--bg-panel) border border-(--border-subtle) rounded-2xl px-4 py-3 flex gap-1 items-center shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-(--veda-purple) animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-(--veda-purple) animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-(--veda-purple) animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="flex-shrink-0 border-t border-[var(--border-subtle)] p-3">
-            <div className="flex gap-2 items-center bg-[var(--bg-input)] border border-[var(--border-default)] rounded px-3 py-2 focus-within:border-[var(--border-active)]">
-              <span className="text-[var(--veda-purple)] text-xs font-bold flex-shrink-0">VEDA</span>
-              <span className="text-[var(--border-default)]">›</span>
-              <input
-                type="text"
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={isLoading ? 'VEDA is thinking...' : 'Ask VEDA anything...'}
-                disabled={isLoading}
-                className="flex-1 bg-transparent text-[var(--text-primary)] text-xs outline-none placeholder:text-[var(--text-muted)] disabled:opacity-50"
-              />
-              <button
-                onClick={handleSend}
-                disabled={isLoading || !inputValue.trim()}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
-              >
-                <Send size={14} />
-              </button>
+          {/* Input Area */}
+          <div className="flex-shrink-0 p-4 bg-transparent z-10">
+            <div className="max-w-3xl mx-auto relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-(--veda-purple) to-blue-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition-opacity duration-500" />
+              <div className="relative flex min-h-[50px] gap-2 items-center bg-(--bg-panel)/90 backdrop-blur-xl border border-(--border-subtle) rounded-2xl px-4 py-2 shadow-xl focus-within:border-(--veda-purple-border) transition-all duration-300">
+                <div className="w-6 h-6 rounded-md bg-(--veda-purple) flex items-center justify-center flex-shrink-0 shadow-md">
+                   <span className="text-white text-[10px] font-bold uppercase tracking-tighter">V</span>
+                </div>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={e => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isLoading ? 'VEDA is thinking...' : 'Ask your ERP anything...'}
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent text-(--text-primary) text-sm outline-none placeholder:text-(--text-muted) disabled:opacity-50"
+                  id="veda-input"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={isLoading || !inputValue.trim()}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-(--veda-purple) text-white hover:bg-violet-500 hover:scale-105 disabled:bg-(--border-subtle) disabled:text-(--text-muted) disabled:scale-100 disabled:opacity-50 transition-all shadow-lg shadow-(--veda-glow)"
+                >
+                   {isLoading ? (
+                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                   ) : (
+                     <Send size={18} />
+                   )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -431,45 +467,54 @@ export default function Home() {
 
         {/* RIGHT PANEL */}
         <div
-          className="flex flex-col border-l border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-shrink-0 overflow-hidden"
+          className="flex flex-col border-l border-(--border-subtle) bg-(--bg-panel) flex-shrink-0 overflow-hidden"
           style={{ width: 'var(--right-panel-width)' }}
         >
-          <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-            <span className="text-[var(--text-muted)] text-xs uppercase tracking-wider">Inspector</span>
+          <div className="px-4 py-3 border-b border-(--border-subtle)">
+            <span className="text-(--text-primary) text-[11px] font-bold uppercase tracking-widest">Inspector</span>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {activeContext.open_record_type ? (
-              <div className="space-y-2">
-                <p className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-wider">
-                  Active Record
-                </p>
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
                 <div className="space-y-1">
-                  <div className="flex gap-2">
-                    <span className="text-[var(--text-muted)] text-xs w-16">Type</span>
-                    <span className="text-[var(--text-primary)] text-xs">
-                      {activeContext.open_record_type}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-[var(--text-muted)] text-xs w-16">ID</span>
-                    <span className="text-[var(--text-primary)] text-xs font-mono truncate">
-                      {activeContext.open_record_id?.slice(0, 8)}...
-                    </span>
-                  </div>
-                  {activeContext.open_module && (
-                    <div className="flex gap-2">
-                      <span className="text-[var(--text-muted)] text-xs w-16">Module</span>
-                      <span className="text-[var(--text-primary)] text-xs">
-                        {activeContext.open_module}
-                      </span>
+                  <p className="text-(--text-muted) text-[10px] font-bold uppercase tracking-widest opacity-60">
+                    Record Info
+                  </p>
+                  <div className="p-3 rounded-xl bg-(--bg-panel-hover) border border-(--border-subtle) space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-(--text-secondary) text-xs">Module</span>
+                      <span className="text-(--text-primary) text-xs font-bold capitalize">{activeContext.open_module}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-(--text-secondary) text-xs">Type</span>
+                      <span className="text-(--veda-purple) text-xs font-bold uppercase tracking-tighter">{activeContext.open_record_type}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-(--text-secondary) text-xs">ID</span>
+                      <span className="text-(--text-primary) text-xs font-mono">{activeContext.open_record_id?.slice(0, 12)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                   <p className="text-(--text-muted) text-[10px] font-bold uppercase tracking-widest opacity-60">
+                    Health Status
+                  </p>
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] p-2 rounded-lg flex items-center gap-2 font-bold">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    REAL-TIME SYNC ACTIVE
+                  </div>
                 </div>
               </div>
             ) : (
-              <p className="text-[var(--text-muted)] text-xs">
-                No record open. Click a table row to open a record.
-              </p>
+              <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <div className="w-12 h-12 rounded-full border border-dashed border-(--border-default) flex items-center justify-center mb-4 opacity-50">
+                  <BarChart2 className="text-(--text-muted)" size={20} />
+                </div>
+                <p className="text-(--text-muted) text-xs italic">
+                  Select a record to inspect system metadata.
+                </p>
+              </div>
             )}
           </div>
         </div>
