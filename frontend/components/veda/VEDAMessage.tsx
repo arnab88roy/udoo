@@ -7,26 +7,53 @@ interface Props {
   onAction?: (action: UIAction) => void;
   onRowClick?: (recordType: string, recordId: string) => void;
   onHintClick?: (hint: string) => void;
+  compact?: boolean;
 }
 
-export function VEDAMessageBubble({ msg, onAction, onRowClick, onHintClick }: Props) {
+export function VEDAMessageBubble({ msg, onAction, onRowClick, onHintClick, compact }: Props) {
   const isUser = msg.role === 'user';
 
+  if (compact) {
+    return (
+      <div className={`flex flex-col gap-1 mb-3 animate-in slide-in-from-bottom-2 duration-300 ${isUser ? 'items-end' : 'items-start'}`}>
+        <div className={`max-w-[90%] px-3 py-2 rounded-xl text-[11px] leading-snug shadow-sm ${
+          isUser 
+            ? 'bg-primary text-primary-foreground rounded-tr-none' 
+            : 'bg-(--bg-panel-hover) border border-(--border-subtle) text-(--text-primary) rounded-tl-none'
+        }`}>
+          {msg.content}
+        </div>
+        {msg.response && (
+           <div className="w-full mt-1">
+              <VEDACard
+                response={msg.response}
+                onAction={onAction}
+                onRowClick={onRowClick}
+                onHintClick={onHintClick}
+              />
+           </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group animate-in fade-in duration-300`}>
       {!isUser && (
-        <div className="flex-shrink-0 w-6 h-6 rounded bg-[var(--accent-primary)] flex items-center justify-center mr-2 mt-0.5">
-          <span className="text-white text-xs font-bold">V</span>
+        <div className="shrink-0 w-8 h-8 rounded-lg bg-gradient-to-tr from-(--veda-purple) to-[#a855f7] flex items-center justify-center mr-3 mt-0.5 shadow-lg shadow-(--veda-glow) transform group-hover:scale-110 transition-transform">
+          <span className="text-white text-[10px] font-bold uppercase tracking-tighter">VEDA</span>
         </div>
       )}
-      <div className={`max-w-[85%] ${isUser ? 'max-w-[60%]' : ''}`}>
+      <div className={`max-w-[85%] ${isUser ? 'max-w-[75%]' : ''}`}>
         {isUser ? (
-          <div className="bg-[var(--bg-input)] border border-[var(--border-default)] rounded px-3 py-2 text-xs text-[var(--text-primary)]">
+          <div className="bg-(--bg-panel-hover) border border-(--border-subtle) rounded-2xl px-5 py-3 text-sm text-(--text-primary) shadow-sm hover:shadow-md transition-shadow">
             {msg.content}
           </div>
         ) : (
-          <div>
-            <p className="text-xs text-[var(--text-primary)] leading-relaxed">{msg.content}</p>
+          <div className="space-y-4">
+            <p className="text-sm text-(--text-primary) leading-relaxed bg-(--bg-panel)/40 rounded-2xl p-4 border border-(--border-subtle)/50">
+              {msg.content}
+            </p>
             {msg.response && (
               <VEDACard
                 response={msg.response}
