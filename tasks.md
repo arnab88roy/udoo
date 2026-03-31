@@ -38,7 +38,7 @@ Both can touch it. No handoff ceremony. No mode switching.
 
 All three modes write to the same Postgres tables via the same FastAPI endpoints.
 No data silos between modes. A record created in Classic appears in VEDA Auto.
-Mode is switchable per-session via the top bar. Default is VEDA Auto.
+Auto/Assist is switchable via the VEDA panel dropdown. Classic = VEDA panel collapsed. Default is VEDA Auto.
 System automatically falls back to Classic when AI is unavailable.
 
 ---
@@ -123,7 +123,7 @@ Rationale: Classic forms verify each endpoint works correctly. VEDA write
 tools are built against proven endpoints — any failure is isolated to the
 VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
 
-- [ ] **Task 2.12:** Employee PATCH endpoint + User-Employee link
+- [x] **Task 2.12:** Employee PATCH endpoint + User-Employee link
     *Currently POST /api/employees/ exists but PATCH /api/employees/{id} is missing.*
     *Also: when an employee is created, there is no corresponding User account.*
     *Without a User account, the employee cannot log in.*
@@ -295,10 +295,10 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
 - [x] **Task 4.5:** VEDA Diff Attribution — purple tint on VEDA-filled fields
 - [x] **Task 4.6:** Role-Aware VEDA Hint Chips
 
-- [ ] **Task 4.1b:** Shell Redesign — VEDA Right Panel + ERP Center + Explorer
+- [ ] **Task 4.1b:** Shell Redesign — VEDA Panel + ERP Center + Explorer
     *The current 4-panel IDE layout has VEDA chat in the center. That is wrong.*
-    *The correct architecture mirrors Antigravity IDE: center is ERP content,*
-    *right panel is the AI agent (VEDA). Auto/Assist is a panel-level toggle.*
+    *The refactor mirrors Antigravity IDE: center is ERP content,*
+    *right panel is the AI agent (VEDA). VEDA Mode is a panel-level toggle.*
 
     **Layout:**
     ```
@@ -319,7 +319,7 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
     **Key architectural decisions:**
     - Center panel = ERP content ONLY (list pages, record forms, welcome screen)
     - Right panel = VEDA AI agent (chat + cards + actions + context indicator)
-    - Auto / Assist = dropdown toggle in VEDA panel header, NOT a top-bar mode
+    - Auto / Assist = dropdown toggle in VEDA panel header, NOT a mode in the top panel
     - Classic = VEDA panel collapsed/hidden, ERP works independently
     - No VEDA tab in the tab bar — tab bar is ERP content tabs only
     - No ModeSwitcher in top bar — replaced by dropdown in VEDA panel
@@ -332,9 +332,9 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
     | Assist | Answer questions, show data, explain rules. NO action buttons. View-only. |
 
     **Sub-tasks:**
-    - 4.1b-A: Component architecture + shell layout + explorer + tab system +
+    - [x] 4.1b-A: Component architecture + shell layout + explorer + tab system +
               VEDA panel with Auto/Assist dropdown + welcome screen
-    - 4.1b-B: Resize handles + toggle animation + localStorage persistence +
+    - [ ] 4.1b-B: Resize handles + toggle animation + localStorage persistence +
               tab overflow scroll + keyboard shortcuts
 
     **What does NOT change:**
@@ -343,19 +343,19 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
     - UIResponse schema
     - RBAC module visibility rules
 
-    - [ ] *Gate 1:* Explorer panel renders module tree (HRMS, Payroll, Finance, Settings)
+    - [x] *Gate 1:* Explorer panel renders module tree (HRMS, Payroll, Finance, Settings)
     - [ ] *Gate 2:* Explorer panel drag-resize works (180px–400px), persists after refresh
     - [ ] *Gate 3:* Explorer panel toggle collapses/expands with animation, persists
-    - [ ] *Gate 4:* Clicking "Employees" in explorer opens Employees list tab in center
+    - [x] *Gate 4:* Clicking "Employees" in explorer opens Employees list tab in center
     - [ ] *Gate 5:* Clicking a record row opens record in new tab in center
     - [ ] *Gate 6:* Active tab record context auto-passed to VEDA panel
-    - [ ] *Gate 7:* VEDA panel shows chat with Auto/Assist dropdown toggle
-    - [ ] *Gate 8:* Auto mode: action buttons render on VEDA cards
+    - [x] *Gate 7:* VEDA panel shows chat with Auto/Assist dropdown toggle
+    - [x] *Gate 8:* Auto mode: action buttons render on VEDA cards
     - [ ] *Gate 9:* Assist mode: NO action buttons, view-only
     - [ ] *Gate 10:* VEDA panel drag-resize works (280px–500px), persists
     - [ ] *Gate 11:* VEDA panel toggle collapses/expands (= Classic mode)
     - [ ] *Gate 12:* Tab overflow scrolls horizontally with 5+ tabs open
-    - [ ] *Gate 13:* Welcome screen renders when no tabs open (quick links, help section)
+    - [x] *Gate 13:* Welcome screen renders when no tabs open (quick links, help section)
 
 - [ ] **Task 4.0:** Authentication Pages
     *Blocks everything else — without login, no real user can access the product.*
@@ -421,26 +421,25 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
 ### Mode 2 — VEDA Assist
 
 - [x] **Task 4.7:** Mode Switcher + Shell Routing
-    Top bar: VEDA Auto | VEDA Assist | Classic
-    - VEDA Auto: 4-panel IDE shell
-    - VEDA Assist: left sidebar + main content + VEDA co-pilot right panel
-    - Classic: left sidebar + main content, no VEDA panel
-    Mode stored in localStorage. Persists across page refreshes.
+    Auto/Assist toggle is a dropdown in the VEDA panel header.
+    Classic mode = VEDA panel collapsed/hidden, ERP works independently.
+    No header-based mode switcher — removed during 4.1b-A redesign.
     - [x] *Gate:* Switching modes changes layout without page reload
     - [x] *Gate:* Mode persists after browser refresh
     - [x] *Gate:* RBAC enforced in all three modes identically
 
 - [x] **Task 4.8:** VEDA Assist Panel Component
-    *Right-side co-pilot attached to every form page.*
-    *Calls POST /api/veda/chat with form context on each interaction.*
+    *VEDA panel is always present on the right side of the shell.*
+    *In Assist mode, action buttons are hidden — view-only guidance.*
+    *In Auto mode, full HITL action buttons render on cards.*
+    *Panel calls POST /api/veda/chat with active tab context.*
 
     Behaviours:
-    - Form open → VEDA greets with record context
-    - Field focus → VEDA suggests valid values
-    - FK field → VEDA shows matching options as user types
-    - Pre-save → VEDA runs compliance check (PF ceiling, ESI threshold, etc.)
-    - Inline Q&A: user asks questions without leaving the form
-    - VEDA responses in panel — never interrupt the form
+    - Chat with VEDA from any screen — panel is always visible
+    - Active tab context auto-passed to VEDA
+    - Auto mode: pre-fill forms, execute HITL actions
+    - Assist mode: answer questions, explain rules, no action buttons
+    - Collapse panel = Classic mode (zero AI dependency)
 
     - [x] *Gate:* Employee form in VEDA Assist → panel shows context greeting
     - [x] *Gate:* Basic salary < 50% CTC → VEDA flags before save
@@ -594,7 +593,7 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
     Behaviour:
     - Frontend polls `GET /api/health` every 60 seconds
     - 2 consecutive failures → auto-switch to Classic mode
-    - Amber top bar banner: "VEDA unavailable — Classic mode active"
+    - Amber header banner: "VEDA unavailable — Classic mode active"
     - VEDA Auto and VEDA Assist buttons greyed out, not hidden
     - Health restored → banner: "VEDA is back — switch to VEDA Auto?" (one click)
     - All Classic and VEDA Assist pages work during outage — zero degradation
@@ -725,11 +724,10 @@ VEDA layer, not the backend. Task 2.14 (PDF) is non-blocking, done last.
 - [x] **TD-9:** Direct fetch streaming implemented
 - [x] **TD-10:** VEDA diff attribution (purple tint) implemented
 - [x] **TD-11:** Frontend shell uses correct 4-panel IDE layout
-- [ ] **TD-12:** Permission checks missing from existing HRMS/Payroll endpoints
-      (only endpoints from Task 2.11+ have require_permission).
-      Add to all existing endpoints before first paying customer.
-- [ ] **TD-13:** Org scope filtering not applied to all list endpoints.
-      Add get_visible_employee_ids() to all list endpoints before first paying customer.
+- [x] **TD-12:** Permission checks missing from existing HRMS/Payroll endpoints
+      (Fixed by Claude Code audit — require_permission added to all 20 HRMS/Payroll endpoints)
+- [x] **TD-13:** Org scope filtering not applied to all list endpoints.
+      (Fixed by Claude Code audit — get_visible_employee_ids() added to leave and attendance list endpoints)
 - [ ] **TD-14:** `company_type` field missing from Company model.
       Options: sole_proprietorship, partnership, llp, private_limited,
       public_limited, opc, section_8, trust, government.
