@@ -186,13 +186,13 @@ async def supervisor_node(state: AgentState) -> AgentState:
 
 def _get_hints_for_role(user: UserContext) -> list:
     """Return role-appropriate hint chips shown below VEDA greetings."""
-    if user.is_owner or user.is_hr_manager:
+    if user.role in ("owner", "hr_manager"):
         return ["Show all employees", "Run payroll", "Pending approvals"]
-    elif user.is_finance_manager:
+    elif user.role == "finance_manager":
         return ["Outstanding invoices", "Create quote", "Payment received"]
-    elif user.is_manager:
+    elif user.role == "manager":
         return ["My team", "Pending leave approvals", "Team attendance"]
-    elif user.is_employee:
+    elif user.role == "employee":
         return ["Apply for leave", "My payslips", "My attendance"]
     else:
         return ["Show dashboard"]

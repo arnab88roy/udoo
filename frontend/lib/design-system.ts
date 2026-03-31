@@ -46,13 +46,14 @@ export const INVOICE_STATUS_BADGE: Record<string, string> = {
 }
 
 // ─── VEDA mode identifiers ─────────────────────────────────────────────────
+// Canonical type lives in @/types/shell.ts — re-export for convenience
 
-export type VEDAMode = "veda-auto" | "veda-assist" | "classic"
+import type { VEDAMode } from "@/types/shell"
+export type { VEDAMode }
 
 export const VEDA_MODE_LABELS: Record<VEDAMode, string> = {
-  "veda-auto":   "VEDA Auto",
-  "veda-assist": "VEDA Assist",
-  "classic":     "Classic",
+  "auto":   "VEDA Auto",
+  "assist": "VEDA Assist",
 }
 
 // ─── Module navigation config ──────────────────────────────────────────────

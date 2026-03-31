@@ -27,7 +27,11 @@ export async function sendVEDAMessage(
     throw new Error(`VEDA API error ${response.status}: ${error}`);
   }
 
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`VEDA API returned non-JSON response (status ${response.status})`);
+  }
 }
 
 export function buildNullContext(): UIContext {
@@ -50,7 +54,7 @@ export async function executeAction(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${TOKEN}`,
     },
-    body: method !== 'GET' ? JSON.stringify(payload) : undefined,
+    body: method.toUpperCase() !== 'GET' ? JSON.stringify(payload) : undefined,
   });
 
   let data: unknown = null;

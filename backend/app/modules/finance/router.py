@@ -54,6 +54,7 @@ async def _calculate_line_tax(
     tax_template_id,
     client_id: UUID,
     company_id: UUID,
+    tenant_id: UUID,
 ) -> Decimal:
     """Calculate tax for a line item using GSTCalculator. Returns total_tax."""
     if not tax_template_id:
@@ -69,11 +70,11 @@ async def _calculate_line_tax(
     ]
 
     from app.modules.core_masters.models import Client as ClientModel, Company
-    stmt = select(ClientModel).where(ClientModel.id == client_id)
+    stmt = select(ClientModel).where(ClientModel.id == client_id, ClientModel.tenant_id == tenant_id)
     cl_res = await db.execute(stmt)
     client_obj = cl_res.scalar_one()
 
-    stmt = select(Company).where(Company.id == company_id)
+    stmt = select(Company).where(Company.id == company_id, Company.tenant_id == tenant_id)
     co_res = await db.execute(stmt)
     company_obj = co_res.scalar_one()
 
@@ -271,7 +272,7 @@ async def create_quote(
         line = QuoteLineItem(**line_data.model_dump(), quote_id=quote.id, tenant_id=current_user.tenant_id)
         line.taxable_amount = (line.quantity * line.rate * (1 - line.discount_percent / 100)).quantize(Decimal("0.01"))
         effective_template = line.tax_template_id or quote.tax_template_id
-        line.tax_amount = await _calculate_line_tax(db, line.taxable_amount, effective_template, quote.client_id, quote.company_id)
+        line.tax_amount = await _calculate_line_tax(db, line.taxable_amount, effective_template, quote.client_id, quote.company_id, current_user.tenant_id)
         line.line_total = line.taxable_amount + line.tax_amount
         db.add(line)
         subtotal += line.taxable_amount
@@ -471,7 +472,7 @@ async def create_proforma(
         line = ProformaLineItem(**line_data.model_dump(), proforma_id=proforma.id, tenant_id=current_user.tenant_id)
         line.taxable_amount = (line.quantity * line.rate * (1 - line.discount_percent / 100)).quantize(Decimal("0.01"))
         effective_template = line.tax_template_id or proforma.tax_template_id
-        line.tax_amount = await _calculate_line_tax(db, line.taxable_amount, effective_template, proforma.client_id, proforma.company_id)
+        line.tax_amount = await _calculate_line_tax(db, line.taxable_amount, effective_template, proforma.client_id, proforma.company_id, current_user.tenant_id)
         line.line_total = line.taxable_amount + line.tax_amount
         db.add(line)
         subtotal += line.taxable_amount
@@ -634,7 +635,7 @@ async def create_invoice(
         line = InvoiceLineItem(**line_data.model_dump(), invoice_id=invoice.id, tenant_id=current_user.tenant_id)
         line.taxable_amount = (line.quantity * line.rate * (1 - line.discount_percent / 100)).quantize(Decimal("0.01"))
         effective_template = line.tax_template_id or invoice.tax_template_id
-        line.tax_amount = await _calculate_line_tax(db, line.taxable_amount, effective_template, invoice.client_id, invoice.company_id)
+        line.tax_amount = await _calculate_line_tax(db, line.taxable_amount, effective_template, invoice.client_id, invoice.company_id, current_user.tenant_id)
         line.line_total = line.taxable_amount + line.tax_amount
         db.add(line)
         subtotal += line.taxable_amount

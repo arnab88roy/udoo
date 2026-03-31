@@ -9,16 +9,16 @@ interface Props {
 export function TextMessage({ payload, onHintClick }: Props) {
   return (
     <div className="mt-1">
-      <p className="text-[var(--text-primary)] text-xs leading-relaxed whitespace-pre-wrap">
+      <p className="text-foreground text-xs leading-relaxed whitespace-pre-wrap">
         {payload.content}
       </p>
       {payload.hints.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-3">
-          {payload.hints.map(hint => (
+          {payload.hints.map((hint, i) => (
             <button
-              key={hint}
+              key={`hint-${i}`}
               onClick={() => onHintClick?.(hint)}
-              className="px-2 py-1 rounded border border-[var(--border-default)] text-[var(--text-secondary)] text-xs hover:border-[var(--border-active)] hover:text-[var(--text-primary)] transition-colors"
+              className="px-2 py-1 rounded border border-border text-muted-foreground text-xs hover:border-ring hover:text-foreground transition-colors"
             >
               {hint}
             </button>

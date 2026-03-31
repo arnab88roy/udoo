@@ -59,7 +59,7 @@ export function useTabManager() {
 
     const newTab: Tab = {
       ...tab,
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
     };
 
     setTabs(prev => [...prev, newTab]);
@@ -69,18 +69,19 @@ export function useTabManager() {
   const removeTab = (id: string) => {
     setTabs(prev => {
       const newTabs = prev.filter(t => t.id !== id);
-      
-      // If we closed the active tab, switch to the last remaining one
-      if (activeTabId === id) {
-        if (newTabs.length > 0) {
-          setActiveTabId(newTabs[newTabs.length - 1].id);
-        } else {
-          setActiveTabId(null);
-        }
-      }
-      
       return newTabs;
     });
+    // Use functional updater to avoid stale activeTabId closure
+    setActiveTabId(prev => {
+      if (prev !== id) return prev;
+      const remaining = tabs.filter(t => t.id !== id);
+      return remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+    });
+  };
+
+  const closeOthers = (keepId: string) => {
+    setTabs(prev => prev.filter(t => t.id === keepId));
+    setActiveTabId(keepId);
   };
 
   const closeAll = () => {
@@ -96,8 +97,9 @@ export function useTabManager() {
     activeTabId,
     addTab,
     removeTab,
-    setActiveTabId,
+    closeOthers,
     closeAll,
+    setActiveTabId,
     isLoaded
   };
 }

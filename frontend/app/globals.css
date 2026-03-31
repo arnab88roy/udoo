@@ -44,6 +44,18 @@
   --color-sidebar-primary: hsl(var(--sidebar-primary));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
   --color-sidebar: hsl(var(--sidebar-background));
+  --color-shell-bg: hsl(var(--shell-bg));
+  --color-glass: hsl(var(--glass-bg));
+  --color-glass-border: hsl(var(--glass-border));
+  --color-sheet: hsl(var(--sheet-bg));
+  --shadow-sheet: var(--sheet-shadow);
+  
+  /* Semantic Glass Contrast Tokens */
+  --color-glass-fg-primary: white;
+  --color-glass-fg-secondary: white / 75%;
+  --color-glass-fg-inactive: white / 70%;
+  --color-glass-fg-muted: white / 50%;
+  --color-glass-border-muted: white / 15%;
 }
 
 @layer base {
@@ -106,6 +118,34 @@
     --sidebar-accent-foreground: 220.9 39.3% 11%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 221.2 83.2% 53.3%;
+    /* Floating panel background — subtle, not a wild gradient */
+    --shell-bg: 220 14.3% 95.9%;  /* Light: soft cool gray */
+    --shell-bg-gradient-from: 220 20% 97%;
+    --shell-bg-gradient-to: 210 15% 93%;
+
+    /* Dark sidebar — always dark regardless of theme */
+    --sidebar-dark-bg: 224 50% 8%;
+    --sidebar-dark-text: 210 20% 90%;
+    --sidebar-dark-muted: 215 15% 55%;
+    --sidebar-dark-active: 221.2 83.2% 53.3%;
+    --sidebar-dark-active-bg: 221.2 83.2% 53.3% / 0.15;
+    --sidebar-dark-border: 215 30% 15%;
+    --sidebar-dark-hover: 215 30% 12%;
+
+    /* Forensic Cleanup - Taskapp Surface Tokens */
+    --glass-bg: 0 0% 100% / 0.15;
+    --glass-border: 0 0% 100% / 0.25;
+    --sheet-bg: 0 0% 100%;
+    --sheet-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 10px 40px rgba(0,0,0,0.08);
+
+    /* Body Gradients - LIGHT MODE (Morning Royale) */
+    --bg-stop-1: #e7d0f0;
+    --bg-stop-2: #cecbe6;
+    --bg-stop-3: #e8e2c8;
+
+    /* Panel card shadows — Apple-style multi-layer */
+    --panel-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06);
+    --panel-shadow-lg: 0 4px 12px rgba(0,0,0,0.05), 0 16px 48px rgba(0,0,0,0.12);
   }
 
   .dark {
@@ -154,6 +194,35 @@
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 215 27.9% 16.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Dark mode shell background */
+    --shell-bg: 228 25% 6%;
+    --shell-bg-gradient-from: 228 30% 5%;
+    --shell-bg-gradient-to: 224 25% 8%;
+
+    /* Dark sidebar in dark mode — even deeper */
+    --sidebar-dark-bg: 228 35% 4%;
+    --sidebar-dark-text: 210 20% 90%;
+    --sidebar-dark-muted: 215 15% 50%;
+    --sidebar-dark-active: 217.2 91.2% 59.8%;
+    --sidebar-dark-active-bg: 217.2 91.2% 59.8% / 0.15;
+    --sidebar-dark-border: 228 25% 10%;
+    --sidebar-dark-hover: 228 25% 8%;
+
+    /* Dark mode Forensic Tokens - Darker Glass */
+    --glass-bg: 228 35% 4% / 0.4;
+    --glass-border: 228 30% 15%;
+    --sheet-bg: 228 35% 4%;
+    --sheet-shadow: 0 2px 8px rgba(0,0,0,0.2), 0 16px 64px rgba(0,0,0,0.5);
+
+    /* Body Gradients - DARK MODE (Midnight Royale) */
+    --bg-stop-1: #31016b;
+    --bg-stop-2: #491eaf;
+    --bg-stop-3: #9e60fa;
+
+    /* Darker shadows for dark mode */
+    --panel-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.3);
+    --panel-shadow-lg: 0 4px 12px rgba(0,0,0,0.2), 0 20px 80px rgba(0,0,0,0.6);
   }
 }
 
@@ -162,7 +231,12 @@
 }
 
 body {
-  background-color: hsl(var(--background));
+  background: fixed linear-gradient(
+    135deg,
+    var(--bg-stop-1) 0%,
+    var(--bg-stop-2) 50%,
+    var(--bg-stop-3) 100%
+  );
   color: hsl(var(--foreground));
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   /* Next.js default text sizing is usually 14px (text-sm) for SaaS dashboards */

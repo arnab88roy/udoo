@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.db.database import get_db
 from app.dependencies import get_tenant_id, get_current_user
 from app.schemas.user_context import UserContext
+from app.utils.permissions import require_permission
 from app.modules.hr_masters import models, schemas
 from app.modules.core_masters.models import User
 import secrets
@@ -18,7 +19,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 employee_router = APIRouter(prefix="/employees", tags=["Employees"])
 
 @employee_router.post("/", response_model=schemas.EmployeeResponse)
-async def create_employee(data: schemas.EmployeeCreate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def create_employee(data: schemas.EmployeeCreate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "create")
     # 1. Compute Full Name
     full_parts = [p for p in [data.first_name, data.middle_name, data.last_name] if p]
     computed_name = " ".join(full_parts)
@@ -57,7 +59,8 @@ async def create_employee(data: schemas.EmployeeCreate, db: AsyncSession = Depen
     return result.scalar_one()
 
 @employee_router.get("/", response_model=List[schemas.EmployeeResponse])
-async def list_employees(db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def list_employees(db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "view")
     stmt = (
         select(models.Employee)
         .options(
@@ -71,7 +74,8 @@ async def list_employees(db: AsyncSession = Depends(get_db), tenant_id: UUID = D
     return result.scalars().all()
 
 @employee_router.get("/{id}", response_model=schemas.EmployeeResponse)
-async def get_employee(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def get_employee(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "view")
     stmt = (
         select(models.Employee)
         .options(
@@ -88,7 +92,8 @@ async def get_employee(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: 
     return emp
 
 @employee_router.patch("/{id}", response_model=schemas.EmployeeResponse)
-async def update_employee(id: UUID, data: schemas.EmployeeUpdate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def update_employee(id: UUID, data: schemas.EmployeeUpdate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "edit")
     stmt = (
         select(models.Employee)
         .options(

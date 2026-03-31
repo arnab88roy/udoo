@@ -6,13 +6,17 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.db.database import get_db
-from app.dependencies import get_tenant_id
+from app.dependencies import get_tenant_id, get_current_user
+from app.schemas.user_context import UserContext
+from app.utils.permissions import require_permission
+from app.utils.org_scope import get_visible_employee_ids
 from app.modules.hr_masters import models, schemas
 
 leave_type_router = APIRouter(prefix="/leave-types", tags=["Leave Types"])
 
 @leave_type_router.post("/", response_model=schemas.LeaveTypeResponse, status_code=status.HTTP_201_CREATED)
-async def create_leave_type(entity: schemas.LeaveTypeCreate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def create_leave_type(entity: schemas.LeaveTypeCreate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "create")
     db_obj = models.LeaveType(**entity.model_dump(), tenant_id=tenant_id)
     db.add(db_obj)
     await db.commit()
@@ -20,13 +24,15 @@ async def create_leave_type(entity: schemas.LeaveTypeCreate, db: AsyncSession = 
     return db_obj
 
 @leave_type_router.get("/", response_model=List[schemas.LeaveTypeResponse])
-async def list_leave_types(db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def list_leave_types(db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "view")
     stmt = select(models.LeaveType).where(models.LeaveType.tenant_id == tenant_id)
     result = await db.execute(stmt)
     return result.scalars().all()
 
 @leave_type_router.get("/{id}", response_model=schemas.LeaveTypeResponse)
-async def get_leave_type(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def get_leave_type(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "view")
     stmt = select(models.LeaveType).where(models.LeaveType.id == id, models.LeaveType.tenant_id == tenant_id)
     result = await db.execute(stmt)
     obj = result.scalar_one_or_none()
@@ -38,7 +44,8 @@ async def get_leave_type(id: UUID, db: AsyncSession = Depends(get_db), tenant_id
 leave_application_router = APIRouter(prefix="/leave-applications", tags=["Leave Applications"])
 
 @leave_application_router.post("/", response_model=schemas.LeaveApplicationResponse, status_code=status.HTTP_201_CREATED)
-async def create_leave_application(entity: schemas.LeaveApplicationCreate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def create_leave_application(entity: schemas.LeaveApplicationCreate, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "submit")
     db_obj = models.LeaveApplication(**entity.model_dump(), tenant_id=tenant_id)
     # Status should start as Draft (0) by default in schema (0)
     db_obj.docstatus = 0
@@ -62,7 +69,9 @@ async def create_leave_application(entity: schemas.LeaveApplicationCreate, db: A
     return result.scalar_one()
 
 @leave_application_router.get("/", response_model=List[schemas.LeaveApplicationResponse])
-async def list_leave_applications(db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def list_leave_applications(db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "view")
+    visible_ids = await get_visible_employee_ids(db, current_user, tenant_id)
     stmt = (
         select(models.LeaveApplication)
         .options(
@@ -73,11 +82,14 @@ async def list_leave_applications(db: AsyncSession = Depends(get_db), tenant_id:
         )
         .where(models.LeaveApplication.tenant_id == tenant_id)
     )
+    if visible_ids is not None:
+        stmt = stmt.where(models.LeaveApplication.employee_id.in_(visible_ids))
     result = await db.execute(stmt)
     return result.scalars().all()
 
 @leave_application_router.get("/{id}", response_model=schemas.LeaveApplicationResponse)
-async def get_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def get_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "view")
     stmt = (
         select(models.LeaveApplication)
         .options(
@@ -97,7 +109,8 @@ async def get_leave_application(id: UUID, db: AsyncSession = Depends(get_db), te
 # --- State Machine Endpoints ---
 
 @leave_application_router.post("/{id}/submit", response_model=schemas.LeaveApplicationResponse)
-async def submit_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def submit_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "submit")
     stmt = select(models.LeaveApplication).where(models.LeaveApplication.id == id, models.LeaveApplication.tenant_id == tenant_id)
     result = await db.execute(stmt)
     obj = result.scalar_one_or_none()
@@ -125,7 +138,8 @@ async def submit_leave_application(id: UUID, db: AsyncSession = Depends(get_db),
     return result.scalar_one()
 
 @leave_application_router.post("/{id}/approve", response_model=schemas.LeaveApplicationResponse)
-async def approve_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def approve_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "approve")
     stmt = select(models.LeaveApplication).where(models.LeaveApplication.id == id, models.LeaveApplication.tenant_id == tenant_id)
     result = await db.execute(stmt)
     obj = result.scalar_one_or_none()
@@ -134,8 +148,9 @@ async def approve_leave_application(id: UUID, db: AsyncSession = Depends(get_db)
     
     if obj.docstatus != 1:
         raise HTTPException(status_code=400, detail="Only Submitted applications can be approved.")
-        
+
     obj.status = "Approved"
+    obj.docstatus = 1  # remains submitted; status field tracks approval
     await db.commit()
     
     # Eager load
@@ -153,17 +168,19 @@ async def approve_leave_application(id: UUID, db: AsyncSession = Depends(get_db)
     return result.scalar_one()
 
 @leave_application_router.post("/{id}/cancel", response_model=schemas.LeaveApplicationResponse)
-async def cancel_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id)):
+async def cancel_leave_application(id: UUID, db: AsyncSession = Depends(get_db), tenant_id: UUID = Depends(get_tenant_id), current_user: UserContext = Depends(get_current_user)):
+    require_permission(current_user, "hrms", "submit")
     stmt = select(models.LeaveApplication).where(models.LeaveApplication.id == id, models.LeaveApplication.tenant_id == tenant_id)
     result = await db.execute(stmt)
     obj = result.scalar_one_or_none()
     if not obj:
         raise HTTPException(status_code=404, detail="Leave Application not found")
     
-    if obj.docstatus != 1:
-        raise HTTPException(status_code=400, detail="Only Submitted applications can be cancelled.")
-        
+    if obj.docstatus not in (0, 1):
+        raise HTTPException(status_code=400, detail="Only Draft or Submitted applications can be cancelled.")
+
     obj.docstatus = 2
+    obj.status = "Cancelled"
     await db.commit()
     
     # Eager load for response
