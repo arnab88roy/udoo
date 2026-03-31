@@ -5,16 +5,9 @@
 @theme {
   /* Structure */
   --activity-bar-width: 48px;
-  --left-panel-width: 240px;
-  --right-panel-width: 300px;
+  --left-panel-width: 260px; /* Adjusted to match your recent 4.1b update */
+  --right-panel-width: 340px; /* Adjusted to match your recent 4.1b update */
   --top-bar-height: 48px;
-
-  /* ERP Status Colors (Shared globally) */
-  --color-status-draft: #94a3b8;
-  --color-status-submitted: #3b82f6;
-  --color-status-cancelled: #ef4444;
-  --color-status-success: #10b981;
-  --color-status-warning: #f59e0b;
 
   /* Theme color mapping */
   --color-background: hsl(var(--background));
@@ -42,6 +35,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /* Sidebar Tokens mapping */
   --color-sidebar-ring: hsl(var(--sidebar-ring));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
@@ -54,33 +48,7 @@
 
 @layer base {
   :root {
-    /* IDE Light palette (Soft Slate) — used by VEDA Auto */
-    --bg-base: #f1f5f9;
-    --bg-panel: #ffffff;
-    --bg-panel-hover: #f8fafc;
-    --bg-input: #ffffff;
-    --bg-card: #ffffff;
-
-    --border-subtle: #e2e8f0;
-    --border-default: #cbd5e1;
-    --border-active: #94a3b8;
-
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
-
-    /* Mode Specifics: Classic */
-    --classic-blue: #3b82f6;
-    --classic-blue-muted: rgba(59, 130, 246, 0.1);
-    --classic-border: #e2e8f0;
-
-    /* Mode Specifics: VEDA Assist */
-    --veda-purple: #7c3aed;
-    --veda-purple-bg: rgba(124, 58, 237, 0.08);
-    --veda-purple-border: rgba(124, 58, 237, 0.3);
-    --veda-glow: 0 0 20px rgba(124, 58, 237, 0.1);
-
-    /* Udoo brand — light theme (Classic + VEDA Assist) */
+    /* Tremor-inspired Gray palette — warm neutral, not cold zinc */
     --background: 0 0% 100%;
     --foreground: 224 71.4% 4.1%;
 
@@ -90,145 +58,138 @@
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
 
-    /* Udoo primary — Blue 600 (shadcn blue base) */
+    /* Udoo Blue — unchanged */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
-    /* Secondary — Slate 100 */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Gray-100 based secondary (Tremor: gray-50/gray-100) */
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
 
-    /* Muted — Slate 50 */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Gray-50 muted background, gray-500 muted text */
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
 
-    /* Accent — Blue 50 */
-    --accent: 214.3 31.8% 91.4%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Gray-100 accent for hover states */
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
 
-    /* Destructive — Red 600 */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    /* Gray-200 borders — visible but soft */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.5rem;
 
-    /* VEDA diff attribution — purple tint for VEDA-filled fields */
-    /* Intentionally distinct from brand blue — do not change */
-    --veda-fill: 258 100% 96%;
-    --veda-fill-border: 258 90% 66%;
+    /* VEDA AI accent — purple, distinct from blue brand */
+    --veda-fill: 262 83% 96%;
+    --veda-fill-border: 262 83% 75%;
 
-    /* Status colours — used in badges across all modes */
+    /* Status colors — unchanged */
     --status-active: 142 71% 45%;
-    --status-inactive: 215.4 16.3% 46.9%;
+    --status-inactive: 220 8.9% 46.1%;
     --status-pending: 38 92% 50%;
     --status-approved: 142 71% 45%;
     --status-rejected: 0 84.2% 60.2%;
-    --status-draft: 215.4 16.3% 46.9%;
+    --status-draft: 220 8.9% 46.1%;
     --status-submitted: 221.2 83.2% 53.3%;
 
-    /* Sidebar tokens */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222.2 47.4% 11.2%;
+    /* Sidebar — gray-50, slightly distinct from pure white content */
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 220.9 39.3% 11%;
     --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 214.3 31.8% 91.4%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14.3% 95.9%;
+    --sidebar-accent-foreground: 220.9 39.3% 11%;
+    --sidebar-border: 220 13% 91%;
     --sidebar-ring: 221.2 83.2% 53.3%;
   }
 
   .dark {
-    /* IDE Dark palette (Midnight Slate Royale) — used by VEDA Auto */
-    --bg-base: #020617; 
-    --bg-panel: #0f172a;
-    --bg-panel-hover: #1e293b;
-    --bg-input: #1e293b;
-    --bg-card: #0f172a;
-
-    --border-subtle: #1e293b;
-    --border-default: #334155;
-    --border-active: #ffffff;
-
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-
-    /* Mode Specifics: Classic */
-    --classic-blue: #3b82f6;
-    --classic-blue-muted: rgba(59, 130, 246, 0.1);
-    --classic-border: #1e293b;
-
-    /* Mode Specifics: VEDA Assist */
-    --veda-purple: #c084fc;
-    --veda-purple-bg: rgba(192, 132, 252, 0.12);
-    --veda-purple-border: rgba(192, 132, 252, 0.3);
-    --veda-glow: 0 0 20px rgba(192, 132, 252, 0.2);
-
-    /* VEDA Auto dark IDE shell — keep existing dark theme */
+    /* Tremor dark — deep gray-900 base, not pure black */
     --background: 224 71.4% 4.1%;
     --foreground: 210 20% 98%;
 
-    --card: 224 71.4% 4.1%;
+    --card: 215 27.9% 16.9%;
     --card-foreground: 210 20% 98%;
 
     --popover: 224 71.4% 4.1%;
     --popover-foreground: 210 20% 98%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* Udoo Blue — slightly brighter for dark mode contrast */
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Gray-800 secondary */
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 218 10.6% 64.9%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 221.2 83.2% 53.3%;
+    /* Gray-800 borders */
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 217.2 91.2% 59.8%;
 
-    --veda-fill: 258 40% 18%;
-    --veda-fill-border: 258 90% 66%;
+    /* VEDA AI dark mode */
+    --veda-fill: 262 40% 18%;
+    --veda-fill-border: 262 60% 50%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 221.2 83.2% 53.3%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 221.2 83.2% 53.3%;
+    /* Sidebar — slightly deeper than content for separation */
+    --sidebar-background: 222.2 47.4% 6%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 27.9% 16.9%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 215 27.9% 16.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-dm-sans), system-ui, sans-serif;
-  font-size: 13px;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  /* Next.js default text sizing is usually 14px (text-sm) for SaaS dashboards */
+  font-size: 0.875rem; 
   line-height: 1.5;
   overflow: hidden;
   height: 100vh;
+  /* Smoother font rendering on Mac/Windows */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-.dark ::-webkit-scrollbar-thumb { background: #333; }
-:root ::-webkit-scrollbar-thumb { background: #ccc; }
+/* Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
 
 @theme inline {
   --color-sidebar: var(--sidebar);
